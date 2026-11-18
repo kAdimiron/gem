@@ -12,7 +12,7 @@ Modern Windows BitTorrent client built with **.NET 10 (WPF + WPF-UI)** and a cus
   - Light / Dark / System theme support with Mica backdrop and fixed brand accent (`#018574`)
   - Distinct visual states across torrent cards (purple `#7C3AED` for seeding torrents, `#018574` for active downloads)
   - Real-time speed graph (60 s), all-time daily traffic history chart, interactive piece map with live uploading piece highlights, and accurate per-peer swarm progress (`progress_ppm`)
-  - Minimize-to-tray background operation and optional GitHub Releases self-updater (`owner/repo` configurable in Settings)
+  - Minimize-to-tray background operation, single-instance forwarding for `.torrent` files and `magnet:` links, and built-in GitHub Releases self-updater (`kAdimiron/gem`)
 - **86 Windows Display Languages:**
   - Auto-detects the OS UI language on first launch (`LocalizationService.DetectSystemLanguageCode`)
   - Supports live switching across all 86 built-in locale dictionaries in Settings without restarting
@@ -21,6 +21,7 @@ Modern Windows BitTorrent client built with **.NET 10 (WPF + WPF-UI)** and a cus
 
 - [src/Gem](src/Gem) — Main WPF desktop application (`net10.0-windows`)
 - [tests/Gem.Tests](tests/Gem.Tests) — Unit and integration tests (xUnit)
+- [installer](installer) — Inno Setup 6 installer script ([Gem.iss](installer/Gem.iss)) registering `.torrent` file & `magnet:` URL associations
 - [native/tsw](native/tsw) — C++17 C-ABI bridge (`tsw.dll`) linking statically against `libtorrent-rasterbar 1.2.20`, Boost, and OpenSSL
 - [native/win-x64/tsw.dll](native/win-x64/tsw.dll) — Prebuilt x64 native library copied automatically during build & publish
 
@@ -44,6 +45,12 @@ Publish a single-file self-contained `Gem.exe` (no .NET runtime installation req
 
 ```powershell
 dotnet publish src/Gem/Gem.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o publish/win-x64
+```
+
+Build the Windows installer (`GemSetup-1.0.0-win-x64.exe`, requires [Inno Setup 6](https://jrsoftware.org/isinfo.php)):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File installer\build-installer.ps1
 ```
 
 ### Rebuilding `native/tsw` (optional)

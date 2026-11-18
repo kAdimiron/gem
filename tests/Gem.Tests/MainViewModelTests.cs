@@ -474,6 +474,28 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(0L, engine.TotalUploadSpeed);
     }
 
+    [Fact]
+    public async Task HandleActivationArgsAsync_AddsMagnetLinksAndTorrentFilesIntoRunningEngine()
+    {
+        var engine = new FakeTorrentEngineService();
+        var settings = new SettingsService(_tempDir);
+        var vm = new MainViewModel(engine, settings, new ThemeService(), new FakeNotificationService());
+
+        vm.CurrentSection = StoreNavSection.Home;
+        Assert.Equal(StoreNavSection.Home, vm.CurrentSection);
+
+        string magnet = "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567&dn=Arch";
+        string torrentPath = Path.Combine(_tempDir, "ubuntu-desktop.torrent");
+
+        await vm.HandleActivationArgsAsync([$"\"{magnet}\"", torrentPath, "--ignored-flag"]);
+
+        Assert.Equal(2, engine.Torrents.Count);
+        Assert.Equal(magnet, engine.Torrents[0].MagnetUri);
+        Assert.Equal("ubuntu-desktop", engine.Torrents[1].Name);
+        Assert.Equal(StoreNavSection.Downloads, vm.CurrentSection);
+        Assert.Same(engine.Torrents[1], vm.SelectedTorrent);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDir))

@@ -359,7 +359,14 @@ public sealed partial class GitHubUpdateService : IUpdateService
         }
 
         if (lower.EndsWith(".exe", StringComparison.Ordinal))
-            return 60;
+        {
+            if (lower.Contains("setup", StringComparison.Ordinal) ||
+                lower.Contains("install", StringComparison.Ordinal))
+            {
+                return 55;
+            }
+            return 70;
+        }
 
         if (lower.EndsWith(".msi", StringComparison.Ordinal) || lower.EndsWith(".msix", StringComparison.Ordinal))
             return 50;

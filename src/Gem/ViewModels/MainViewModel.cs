@@ -326,6 +326,10 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool IsDownloadsView => CurrentSection == StoreNavSection.Downloads;
 
+    private readonly TaskCompletionSource _initializedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public Task WaitForInitializedAsync() => _initializedTcs.Task;
+
     public MainViewModel(
         ITorrentEngineService engine,
         SettingsService settingsService,
@@ -378,21 +382,28 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task InitializeAsync(Window? mainWindow = null)
     {
-        var settings = _settingsService.LoadSettings();
-        LocalizationService.Instance.SetLanguage(settings.Language);
-        LoadSettingsIntoEditor(settings);
-        _themeService.ApplyTheme(settings.ThemeMode, mainWindow);
-        IsDarkTheme = _themeService.IsDarkActive;
-
-        await _engine.InitializeAsync();
-        RebuildFilteredViews();
-        UpdateCounts();
-
-        if (_updateService is not null &&
-            settings.AutoCheckUpdatesOnStartup &&
-            GitHubUpdateService.TryNormalizeRepository(settings.UpdateRepository) is not null)
+        try
         {
-            _ = CheckForUpdatesInternalAsync(settings.UpdateRepository, notifyIfUpToDateOrError: false);
+            var settings = _settingsService.LoadSettings();
+            LocalizationService.Instance.SetLanguage(settings.Language);
+            LoadSettingsIntoEditor(settings);
+            _themeService.ApplyTheme(settings.ThemeMode, mainWindow);
+            IsDarkTheme = _themeService.IsDarkActive;
+
+            await _engine.InitializeAsync();
+            RebuildFilteredViews();
+            UpdateCounts();
+
+            if (_updateService is not null &&
+                settings.AutoCheckUpdatesOnStartup &&
+                GitHubUpdateService.TryNormalizeRepository(settings.UpdateRepository) is not null)
+            {
+                _ = CheckForUpdatesInternalAsync(settings.UpdateRepository, notifyIfUpToDateOrError: false);
+            }
+        }
+        finally
+        {
+            _initializedTcs.TrySetResult();
         }
     }
 
@@ -798,21 +809,56 @@ public sealed partial class MainViewModel : ObservableObject
         await HandleDroppedFilesAsync(dialog.FileNames);
     }
 
-    public async Task HandleDroppedFilesAsync(IEnumerable<string> paths)
+    public Task HandleDroppedFilesAsync(IEnumerable<string> paths) =>
+        ProcessExternalInputsAsync(paths);
+
+    public Task HandleActivationArgsAsync(IEnumerable<string> args) =>
+        ProcessExternalInputsAsync(args);
+
+    private async Task ProcessExternalInputsAsync(IEnumerable<string> inputs)
     {
         var loc = LocalizationService.Instance;
         int added = 0;
         TorrentItemModel? lastAdded = null;
+        bool lastWasMagnet = false;
 
-        foreach (string path in paths)
+        foreach (string raw in inputs)
         {
-            if (!path.EndsWith(".torrent", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(raw))
+                continue;
+
+            string cleaned = raw.Trim().Trim('"');
+            if (cleaned.StartsWith("magnet:", StringComparison.OrdinalIgnoreCase))
+            {
+                string? normalizedMagnet = FormatHelper.NormalizeToMagnetUri(cleaned);
+                if (normalizedMagnet is null)
+                {
+                    ShowBanner(loc["BannerMagnetFailedTitle"], loc["ErrInvalidMagnetOrHash"], InfoBarSeverity.Error);
+                    continue;
+                }
+
+                try
+                {
+                    lastAdded = await _engine.AddMagnetAsync(normalizedMagnet);
+                    added++;
+                    lastWasMagnet = true;
+                }
+                catch (Exception ex)
+                {
+                    ShowBanner(loc["BannerMagnetFailedTitle"], ex.Message, InfoBarSeverity.Error);
+                }
+
+                continue;
+            }
+
+            if (!cleaned.EndsWith(".torrent", StringComparison.OrdinalIgnoreCase))
                 continue;
 
             try
             {
-                lastAdded = await _engine.AddTorrentFileAsync(path);
+                lastAdded = await _engine.AddTorrentFileAsync(cleaned);
                 added++;
+                lastWasMagnet = false;
             }
             catch (Exception ex)
             {
@@ -822,16 +868,26 @@ public sealed partial class MainViewModel : ObservableObject
 
         if (added > 0)
         {
-            SelectedTorrent = lastAdded;
-            if (CurrentSection == StoreNavSection.Home)
+            if (CurrentSection is StoreNavSection.Home or StoreNavSection.Settings)
                 CurrentSection = StoreNavSection.Downloads;
+            SelectedTorrent = lastAdded;
 
-            ShowBanner(
-                loc["BannerTorrentAddedTitle"],
-                added == 1
-                    ? loc.Format("BannerTorrentAddedSingle", lastAdded?.Name)
-                    : loc.Format("BannerTorrentAddedMulti", added),
-                InfoBarSeverity.Success);
+            if (added == 1 && lastWasMagnet)
+            {
+                ShowBanner(
+                    loc["BannerMagnetAddedTitle"],
+                    loc.Format("BannerMagnetAddedBody", lastAdded?.Name),
+                    InfoBarSeverity.Success);
+            }
+            else
+            {
+                ShowBanner(
+                    loc["BannerTorrentAddedTitle"],
+                    added == 1
+                        ? loc.Format("BannerTorrentAddedSingle", lastAdded?.Name)
+                        : loc.Format("BannerTorrentAddedMulti", added),
+                    InfoBarSeverity.Success);
+            }
         }
     }
 

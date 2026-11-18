@@ -117,15 +117,25 @@ public sealed class SettingsService
             Current = new AppSettings();
         }
 
+        bool needsSave = false;
         if (string.IsNullOrWhiteSpace(Current.Language))
         {
             Current.Language = LocalizationService.DetectSystemLanguageCode();
-            SaveSettings(Current);
+            needsSave = true;
         }
         else
         {
             Current.Language = LocalizationService.ResolveSupportedLanguageCode(Current.Language);
         }
+
+        if (string.IsNullOrWhiteSpace(Current.UpdateRepository))
+        {
+            Current.UpdateRepository = AppSettings.DefaultUpdateRepository;
+            needsSave = true;
+        }
+
+        if (needsSave)
+            SaveSettings(Current);
 
         if (!string.IsNullOrWhiteSpace(Current.DefaultDownloadPath))
         {

@@ -9,9 +9,20 @@ namespace Gem;
 public partial class App : Application
 {
     private ServiceProvider? _serviceProvider;
+    private SingleInstanceService? _singleInstance;
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        _singleInstance = new SingleInstanceService();
+        if (!_singleInstance.TryAcquirePrimary())
+        {
+            _singleInstance.NotifyPrimaryInstance(e.Args);
+            _singleInstance.Dispose();
+            _singleInstance = null;
+            Shutdown(0);
+            return;
+        }
+
         base.OnStartup(e);
         FluentMotion.RegisterGlobalButtonMotion();
         SmoothScrollHelper.RegisterGlobalSmoothScrolling();
@@ -33,23 +44,55 @@ public partial class App : Application
         _serviceProvider.GetRequiredService<ThemeService>().ApplyFixedAccent();
 
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+        var vm = _serviceProvider.GetRequiredService<MainViewModel>();
         mainWindow.Show();
+
+        _singleInstance.StartListening(args => ForwardArgsToRunningWindow(mainWindow, vm, args));
 
         if (e.Args.Length > 0)
         {
-            var vm = _serviceProvider.GetRequiredService<MainViewModel>();
             _ = HandleStartupArgsAsync(vm, e.Args);
         }
     }
 
+    private void ForwardArgsToRunningWindow(MainWindow mainWindow, MainViewModel vm, string[] args)
+    {
+        if (Dispatcher.HasShutdownStarted)
+            return;
+
+        Dispatcher.BeginInvoke(async () =>
+        {
+            ActivateMainWindow(mainWindow);
+            if (args.Length > 0)
+            {
+                await vm.WaitForInitializedAsync();
+                await vm.HandleActivationArgsAsync(args);
+            }
+        });
+    }
+
+    private static void ActivateMainWindow(Window window)
+    {
+        if (!window.IsVisible)
+            window.Show();
+
+        if (window.WindowState == WindowState.Minimized)
+            window.WindowState = WindowState.Normal;
+
+        window.Activate();
+    }
+
     private static async Task HandleStartupArgsAsync(MainViewModel vm, string[] args)
     {
-        await Task.Delay(500);
-        await vm.HandleDroppedFilesAsync(args);
+        await vm.WaitForInitializedAsync();
+        await vm.HandleActivationArgsAsync(args);
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _singleInstance?.Dispose();
+        _singleInstance = null;
+
         if (_serviceProvider is not null)
         {
             var vm = _serviceProvider.GetService<MainViewModel>();

@@ -97,6 +97,18 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal("{\"ListenPort\":60000}", File.ReadAllText(Path.Combine(targetDir, "settings.json")));
     }
 
+    [Fact]
+    public void LoadSettings_DefaultsUpdateRepositoryToKAdimironGem()
+    {
+        var service = new SettingsService(_tempDir);
+        File.WriteAllText(Path.Combine(_tempDir, "settings.json"), "{\"UpdateRepository\":\"\"}");
+
+        var loaded = service.LoadSettings();
+
+        Assert.Equal("kAdimiron/gem", AppSettings.DefaultUpdateRepository);
+        Assert.Equal("kAdimiron/gem", loaded.UpdateRepository);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDir))

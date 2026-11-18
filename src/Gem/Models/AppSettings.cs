@@ -9,6 +9,8 @@ public enum AppThemeMode
 
 public sealed class AppSettings
 {
+    public const string DefaultUpdateRepository = "kAdimiron/gem";
+
     public string DefaultDownloadPath { get; set; } =
         System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "Gem");
 
@@ -43,7 +45,7 @@ public sealed class AppSettings
 
     public bool MinimizeToTrayOnClose { get; set; } = true;
 
-    public string UpdateRepository { get; set; } = string.Empty;
+    public string UpdateRepository { get; set; } = DefaultUpdateRepository;
 
     public bool AutoCheckUpdatesOnStartup { get; set; } = true;
 }
