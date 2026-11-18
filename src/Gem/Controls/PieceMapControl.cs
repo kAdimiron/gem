@@ -26,10 +26,29 @@ public sealed class PieceMapControl : FrameworkElement
 
     private const double FadeInSeconds = 0.22;
     private const double FadeOutSeconds = 0.38;
+    private const int PartialBrushBuckets = 16;
+    private const int BorderPenBuckets = 32;
+
+    private static readonly Brush EmptyBrush = CreateFrozenBrush(Color.FromArgb(28, 140, 140, 140));
 
     private readonly DispatcherTimer _animTimer;
     private readonly Dictionary<int, double> _cellBorderOpacity = new();
+    private readonly HashSet<int> _activeCellsBuffer = new();
+    private readonly List<int> _keysBuffer = new();
     private DateTime _lastTickUtc = DateTime.UtcNow;
+
+    private Color _cachedAccentColor;
+    private Brush? _cachedFullBrush;
+    private Brush[]? _cachedPartialBrushes;
+    private double _cachedBorderThickness = -1;
+    private Pen[]? _cachedBorderPens;
+
+    private static Brush CreateFrozenBrush(Color color)
+    {
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        return brush;
+    }
 
     public IReadOnlyList<double>? Pieces
     {
@@ -58,6 +77,11 @@ public sealed class PieceMapControl : FrameworkElement
         };
         _animTimer.Tick += OnAnimTick;
         Unloaded += (_, _) => _animTimer.Stop();
+        IsVisibleChanged += (_, e) =>
+        {
+            if (e.NewValue is false)
+                _animTimer.Stop();
+        };
     }
 
     private static void OnUploadingPiecesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -96,8 +120,9 @@ public sealed class PieceMapControl : FrameworkElement
         }
 
         bool anyAnimating = false;
-        var keys = _cellBorderOpacity.Keys.ToArray();
-        foreach (int cell in keys)
+        _keysBuffer.Clear();
+        _keysBuffer.AddRange(_cellBorderOpacity.Keys);
+        foreach (int cell in _keysBuffer)
         {
             double current = _cellBorderOpacity[cell];
             if (activeCells.Contains(cell))
@@ -130,22 +155,22 @@ public sealed class PieceMapControl : FrameworkElement
 
     private HashSet<int> ComputeUploadingCells()
     {
-        var result = new HashSet<int>();
+        _activeCellsBuffer.Clear();
         double width = ActualWidth;
         double height = ActualHeight;
         if (width <= 16 || height <= 16)
-            return result;
+            return _activeCellsBuffer;
 
         var uploading = UploadingPieces;
         if (uploading is null || uploading.Count == 0)
-            return result;
+            return _activeCellsBuffer;
 
         var (cols, rows, _, _, _) = ComputeGridMetrics(width, height);
         int totalCells = cols * rows;
         int pieceCount = Pieces?.Count ?? 0;
         int realPieceCount = TotalPieces > 0 ? TotalPieces : pieceCount;
         if (realPieceCount <= 0)
-            return result;
+            return _activeCellsBuffer;
 
         foreach (int pieceIdx in uploading)
         {
@@ -155,18 +180,18 @@ public sealed class PieceMapControl : FrameworkElement
             if (realPieceCount >= totalCells)
             {
                 int cellIdx = Math.Clamp((int)((long)pieceIdx * totalCells / realPieceCount), 0, totalCells - 1);
-                result.Add(cellIdx);
+                _activeCellsBuffer.Add(cellIdx);
             }
             else
             {
                 int startCell = (int)((long)pieceIdx * totalCells / realPieceCount);
                 int endCell = Math.Max(startCell + 1, (int)((long)(pieceIdx + 1) * totalCells / realPieceCount));
                 for (int c = startCell; c < endCell && c < totalCells; c++)
-                    result.Add(c);
+                    _activeCellsBuffer.Add(c);
             }
         }
 
-        return result;
+        return _activeCellsBuffer;
     }
 
     internal static (int Cols, int Rows, double CellSize, double StepX, double StepY) ComputeGridMetrics(double width, double height)
@@ -187,6 +212,41 @@ public sealed class PieceMapControl : FrameworkElement
         return (cols, rows, cellSize, stepX, stepY);
     }
 
+    private void EnsureAccentBrushCache(Color accentColor)
+    {
+        if (_cachedFullBrush is not null && _cachedPartialBrushes is not null && _cachedAccentColor == accentColor)
+            return;
+
+        _cachedAccentColor = accentColor;
+        _cachedFullBrush = CreateFrozenBrush(accentColor);
+        var partials = new Brush[PartialBrushBuckets];
+        for (int i = 0; i < PartialBrushBuckets; i++)
+        {
+            double frac = (i + 0.5) / PartialBrushBuckets;
+            byte alpha = (byte)Math.Clamp(45 + frac * 200, 45, 245);
+            partials[i] = CreateFrozenBrush(Color.FromArgb(alpha, accentColor.R, accentColor.G, accentColor.B));
+        }
+        _cachedPartialBrushes = partials;
+    }
+
+    private Pen[] EnsureBorderPenCache(double borderThickness)
+    {
+        if (_cachedBorderPens is not null && Math.Abs(_cachedBorderThickness - borderThickness) < 0.01)
+            return _cachedBorderPens;
+
+        _cachedBorderThickness = borderThickness;
+        var pens = new Pen[BorderPenBuckets];
+        for (int i = 0; i < BorderPenBuckets; i++)
+        {
+            byte alpha = (byte)Math.Clamp((int)Math.Round((i + 1) * 255.0 / BorderPenBuckets), 1, 255);
+            var pen = new Pen(CreateFrozenBrush(Color.FromArgb(alpha, 255, 255, 255)), borderThickness);
+            pen.Freeze();
+            pens[i] = pen;
+        }
+        _cachedBorderPens = pens;
+        return pens;
+    }
+
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
@@ -198,12 +258,9 @@ public sealed class PieceMapControl : FrameworkElement
 
         Color accentColor = (Application.Current?.TryFindResource("SystemAccentColorPrimaryBrush") as SolidColorBrush)?.Color
                             ?? Color.FromRgb(0x00, 0x78, 0xD4);
-
-        var emptyBrush = new SolidColorBrush(Color.FromArgb(28, 140, 140, 140));
-        emptyBrush.Freeze();
-
-        var fullBrush = new SolidColorBrush(accentColor);
-        fullBrush.Freeze();
+        EnsureAccentBrushCache(accentColor);
+        Brush fullBrush = _cachedFullBrush!;
+        Brush[] partialBrushes = _cachedPartialBrushes!;
 
         var (cols, rows, cellSize, stepX, stepY) = ComputeGridMetrics(width, height);
         double radius = Math.Min(2.5, cellSize * 0.20);
@@ -223,8 +280,17 @@ public sealed class PieceMapControl : FrameworkElement
                 needTimer = true;
             }
         }
-        if (_cellBorderOpacity.Keys.Any(k => !activeCells.Contains(k)))
-            needTimer = true;
+        if (!needTimer)
+        {
+            foreach (int key in _cellBorderOpacity.Keys)
+            {
+                if (!activeCells.Contains(key))
+                {
+                    needTimer = true;
+                    break;
+                }
+            }
+        }
 
         if (needTimer && !_animTimer.IsEnabled)
         {
@@ -233,6 +299,7 @@ public sealed class PieceMapControl : FrameworkElement
         }
 
         double borderThickness = Math.Max(1.5, Math.Min(2.4, cellSize * 0.16));
+        Pen[] borderPens = EnsureBorderPenCache(borderThickness);
 
         for (int cellIdx = 0; cellIdx < totalCells; cellIdx++)
         {
@@ -265,7 +332,7 @@ public sealed class PieceMapControl : FrameworkElement
             Brush brush;
             if (fill <= 0.01)
             {
-                brush = emptyBrush;
+                brush = EmptyBrush;
             }
             else if (fill >= 0.99)
             {
@@ -273,24 +340,19 @@ public sealed class PieceMapControl : FrameworkElement
             }
             else
             {
-                byte alpha = (byte)Math.Clamp(45 + fill * 200, 45, 245);
-                brush = new SolidColorBrush(Color.FromArgb(alpha, accentColor.R, accentColor.G, accentColor.B));
-                brush.Freeze();
+                int bucket = Math.Clamp((int)(fill * PartialBrushBuckets), 0, PartialBrushBuckets - 1);
+                brush = partialBrushes[bucket];
             }
 
             if (_cellBorderOpacity.TryGetValue(cellIdx, out double rawOpacity) && rawOpacity > 0.01)
             {
                 // SmoothStep easing for smooth fade-in and fade-out
                 double eased = rawOpacity * rawOpacity * (3.0 - 2.0 * rawOpacity);
-                byte borderAlpha = (byte)Math.Clamp(eased * 255.0, 0, 255);
-                var borderBrush = new SolidColorBrush(Color.FromArgb(borderAlpha, 255, 255, 255));
-                borderBrush.Freeze();
-                var pen = new Pen(borderBrush, borderThickness);
-                pen.Freeze();
+                int penIdx = Math.Clamp((int)Math.Round(eased * BorderPenBuckets) - 1, 0, BorderPenBuckets - 1);
 
                 double inset = borderThickness * 0.5;
                 var rect = new Rect(x + inset, y + inset, Math.Max(1.0, cellSize - borderThickness), Math.Max(1.0, cellSize - borderThickness));
-                dc.DrawRoundedRectangle(brush, pen, rect, radius, radius);
+                dc.DrawRoundedRectangle(brush, borderPens[penIdx], rect, radius, radius);
             }
             else
             {

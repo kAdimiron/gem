@@ -63,7 +63,7 @@ Name: "assoc_torrent"; Description: "{cm:AssocTorrent}"; GroupDescription: "{cm:
 Name: "assoc_magnet"; Description: "{cm:AssocMagnet}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "..\publish\win-x64\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\publish\win-x64-app\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

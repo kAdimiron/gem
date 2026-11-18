@@ -279,8 +279,8 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
         sp.Set(new EnableOutgoingUtp(true));
         sp.Set(new ConnectionsLimit(Math.Clamp(settings.MaxConnections, 10, 2000)));
 
-        // Classic libtorrent 1.2.20 LRU disk cache (no mmap_disk_io) with consistent OS-cached ReadFile/WriteFile.
-        sp.Set(new CacheSizeSetting(4096)); // 4096 * 16 KiB = 64 MiB classic disk cache
+        // Classic libtorrent 1.2.20 LRU disk cache (no mmap_disk_io); Windows OS cache handles bulk I/O.
+        sp.Set(new CacheSizeSetting(1024)); // 1024 * 16 KiB = 16 MiB classic disk cache
         sp.Set(new CacheExpirySetting(60));
         sp.Set(new UseReadCacheSetting(true));
         sp.Set(new DiskIoReadMode(0));  // enable_os_cache on reads
@@ -821,9 +821,10 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
         if (!_managers.TryGetValue(item.InfoHash, out var manager))
             return Task.CompletedTask;
 
-        SyncFiles(manager, item);
+        byte[] pieceMap = manager.PieceCount > 0 ? manager.GetPieceMap() : [];
+        SyncFiles(manager, item, pieceMap);
         SyncTrackers(manager, item);
-        SyncPieceMap(manager, item);
+        SyncPieceMap(manager, item, pieceMap);
         SyncPeers(manager, item);
         return Task.CompletedTask;
     }
@@ -1260,19 +1261,30 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
             UpdateModelUploadingPieces(model);
     }
 
-    private void SyncFiles(TorrentManager manager, TorrentItemModel model)
+    private void SyncFiles(TorrentManager manager, TorrentItemModel model, byte[]? sharedPieceMap = null)
     {
         var nativeFiles = manager.Files;
         if (nativeFiles.Count == 0)
             return;
 
-        (int pieceLength, _) = GetMetadataHints(manager, model.InfoHash);
-        byte[] pieceMap = manager.PieceCount > 0 ? manager.GetPieceMap() : [];
-        long totalSize = manager.Info?.Metadata.TotalSize ?? 0;
-
         string savePath = _savePaths.TryGetValue(model.InfoHash, out string? sp)
             ? sp
             : _settingsService.Current.DefaultDownloadPath;
+
+        if (model.Files.Count == nativeFiles.Count &&
+            model.Progress >= 100.0 &&
+            model.Files.All(f => f.BytesDownloaded >= f.Length))
+        {
+            for (int i = 0; i < nativeFiles.Count; i++)
+            {
+                model.Files[i].Priority = FromLibtorrentPriority(nativeFiles[i].Priority);
+            }
+            return;
+        }
+
+        (int pieceLength, _) = GetMetadataHints(manager, model.InfoHash);
+        byte[] pieceMap = sharedPieceMap ?? (manager.PieceCount > 0 ? manager.GetPieceMap() : []);
+        long totalSize = manager.Info?.Metadata.TotalSize ?? 0;
 
         if (model.Files.Count != nativeFiles.Count)
         {
@@ -1343,20 +1355,22 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
         return Math.Clamp(downloaded, 0, fileSize);
     }
 
-    private void SyncPieceMap(TorrentManager manager, TorrentItemModel model)
+    private void SyncPieceMap(TorrentManager manager, TorrentItemModel model, byte[]? sharedPieceMap = null)
     {
         UpdateModelUploadingPieces(model);
 
         if (manager.PieceCount <= 0)
         {
-            model.PieceBucketFill = [];
+            if (model.PieceBucketFill.Count > 0)
+                model.PieceBucketFill = [];
             return;
         }
 
-        byte[] map = manager.GetPieceMap();
+        byte[] map = sharedPieceMap ?? manager.GetPieceMap();
         if (map.Length == 0)
         {
-            model.PieceBucketFill = [];
+            if (model.PieceBucketFill.Count > 0)
+                model.PieceBucketFill = [];
             return;
         }
 
@@ -1364,6 +1378,23 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
         int total = map.Length;
         if (total <= maxSamples)
         {
+            var existing = model.PieceBucketFill;
+            if (existing.Count == total)
+            {
+                bool changed = false;
+                for (int i = 0; i < total; i++)
+                {
+                    double target = map[i] != 0 ? 1.0 : 0.0;
+                    if (Math.Abs(existing[i] - target) > 0.0001)
+                    {
+                        changed = true;
+                        break;
+                    }
+                }
+                if (!changed)
+                    return;
+            }
+
             var cells = new double[total];
             for (int i = 0; i < total; i++)
                 cells[i] = map[i] != 0 ? 1.0 : 0.0;
@@ -1371,7 +1402,10 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
             return;
         }
 
-        var buckets = new double[maxSamples];
+        var existingBuckets = model.PieceBucketFill;
+        double[]? buckets = existingBuckets.Count == maxSamples ? null : new double[maxSamples];
+        bool bucketChanged = buckets is not null;
+
         for (int b = 0; b < maxSamples; b++)
         {
             int start = (int)((long)b * total / maxSamples);
@@ -1383,20 +1417,39 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
                 if (map[p] != 0)
                     done++;
             }
-            buckets[b] = (double)done / count;
+            double val = (double)done / count;
+            if (buckets is null)
+            {
+                if (Math.Abs(existingBuckets[b] - val) > 0.0001)
+                {
+                    buckets = new double[maxSamples];
+                    for (int k = 0; k < b; k++)
+                        buckets[k] = existingBuckets[k];
+                    buckets[b] = val;
+                    bucketChanged = true;
+                }
+            }
+            else
+            {
+                buckets[b] = val;
+            }
         }
 
-        model.PieceBucketFill = buckets;
+        if (bucketChanged && buckets is not null)
+            model.PieceBucketFill = buckets;
     }
 
     private void UpdateModelUploadingPieces(TorrentItemModel model)
     {
         bool inactive = model.StatusKind is TorrentStatusKind.Paused or TorrentStatusKind.Stopped or TorrentStatusKind.Error;
         int[] snapshot = GetUploadingPiecesSnapshot(model.InfoHash, DateTime.UtcNow, clearIfInactive: inactive);
-        if (model.UploadingPieces.Count > 0 || snapshot.Length > 0)
-        {
-            model.UploadingPieces = snapshot;
-        }
+        if (model.UploadingPieces.Count == 0 && snapshot.Length == 0)
+            return;
+
+        if (model.UploadingPieces is int[] prev && prev.AsSpan().SequenceEqual(snapshot))
+            return;
+
+        model.UploadingPieces = snapshot;
     }
 
     /// <summary>

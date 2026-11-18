@@ -12,17 +12,75 @@ public sealed class SpeedChartControl : FrameworkElement
 
     private static readonly Color DownloadColor = Color.FromRgb(0x00, 0x78, 0xD4);
     private static readonly Color UploadColor = Color.FromRgb(0x10, 0x9E, 0x4E);
+    private static readonly Typeface SegoeUiTypeface = new("Segoe UI");
+    private static readonly Pen GridPen = CreateGridPen();
+    private static readonly LinearGradientBrush UploadFillBrush = CreateAreaBrush(UploadColor);
+    private static readonly Pen UploadStrokePen = CreateStrokePen(UploadColor);
+
+    private Color _cachedDownloadColor;
+    private LinearGradientBrush? _cachedDownloadFillBrush;
+    private Pen? _cachedDownloadStrokePen;
 
     public SpeedChartControl()
     {
         ClipToBounds = true;
+        IsVisibleChanged += (_, e) =>
+        {
+            if (e.NewValue is true)
+                InvalidateVisual();
+        };
     }
 
     public void UpdateSeries(IReadOnlyList<long> downloadPoints, IReadOnlyList<long> uploadPoints)
     {
         _downloadPoints = downloadPoints;
         _uploadPoints = uploadPoints;
-        InvalidateVisual();
+        if (IsVisible)
+            InvalidateVisual();
+    }
+
+    private static Pen CreateGridPen()
+    {
+        var brush = new SolidColorBrush(Color.FromArgb(32, 128, 128, 128));
+        brush.Freeze();
+        var pen = new Pen(brush, 1);
+        pen.Freeze();
+        return pen;
+    }
+
+    private static LinearGradientBrush CreateAreaBrush(Color color)
+    {
+        var brush = new LinearGradientBrush(
+            Color.FromArgb(75, color.R, color.G, color.B),
+            Color.FromArgb(4, color.R, color.G, color.B),
+            new Point(0, 0),
+            new Point(0, 1));
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Pen CreateStrokePen(Color color)
+    {
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        var pen = new Pen(brush, 2.0)
+        {
+            LineJoin = PenLineJoin.Round,
+            StartLineCap = PenLineCap.Round,
+            EndLineCap = PenLineCap.Round
+        };
+        pen.Freeze();
+        return pen;
+    }
+
+    private void EnsureDownloadStyleCache(Color downloadColor)
+    {
+        if (_cachedDownloadFillBrush is not null && _cachedDownloadStrokePen is not null && _cachedDownloadColor == downloadColor)
+            return;
+
+        _cachedDownloadColor = downloadColor;
+        _cachedDownloadFillBrush = CreateAreaBrush(downloadColor);
+        _cachedDownloadStrokePen = CreateStrokePen(downloadColor);
     }
 
     protected override void OnRender(DrawingContext dc)
@@ -47,14 +105,10 @@ public sealed class SpeedChartControl : FrameworkElement
         // Round up to a neat multiple
         double scaleMax = maxVal * 1.15;
 
-        // Draw 3 subtle horizontal gridlines
-        var gridPen = new Pen(new SolidColorBrush(Color.FromArgb(32, 128, 128, 128)), 1);
-        gridPen.Freeze();
-
         for (int i = 0; i <= 2; i++)
         {
             double y = padTop + (chartH * i / 2.0);
-            dc.DrawLine(gridPen, new Point(0, y), new Point(w, y));
+            dc.DrawLine(GridPen, new Point(0, y), new Point(w, y));
         }
 
         // Peak label at top-left
@@ -65,7 +119,7 @@ public sealed class SpeedChartControl : FrameworkElement
             Services.LocalizationService.Instance.Format("ChartPeakFormat", FormatHelper.FormatSpeed((long)scaleMax)),
             CultureInfo.CurrentUICulture,
             FlowDirection.LeftToRight,
-            new Typeface("Segoe UI"),
+            SegoeUiTypeface,
             10.5,
             labelBrush,
             dpi);
@@ -74,8 +128,10 @@ public sealed class SpeedChartControl : FrameworkElement
         // Draw Upload first, then Download on top using Windows system accent color
         Color downloadColor = (Application.Current?.TryFindResource("SystemAccentColorPrimaryBrush") as SolidColorBrush)?.Color
                               ?? DownloadColor;
-        DrawSeries(dc, _uploadPoints, w, padTop, chartH, scaleMax, UploadColor);
-        DrawSeries(dc, _downloadPoints, w, padTop, chartH, scaleMax, downloadColor);
+        EnsureDownloadStyleCache(downloadColor);
+
+        DrawSeries(dc, _uploadPoints, w, padTop, chartH, scaleMax, UploadFillBrush, UploadStrokePen);
+        DrawSeries(dc, _downloadPoints, w, padTop, chartH, scaleMax, _cachedDownloadFillBrush!, _cachedDownloadStrokePen!);
     }
 
     private static void DrawSeries(
@@ -85,7 +141,8 @@ public sealed class SpeedChartControl : FrameworkElement
         double padTop,
         double chartHeight,
         double scaleMax,
-        Color color)
+        Brush fillBrush,
+        Pen strokePen)
     {
         if (points.Count < 2)
             return;
@@ -127,21 +184,6 @@ public sealed class SpeedChartControl : FrameworkElement
 
         areaGeometry.Freeze();
         lineGeometry.Freeze();
-
-        var fillBrush = new LinearGradientBrush(
-            Color.FromArgb(75, color.R, color.G, color.B),
-            Color.FromArgb(4, color.R, color.G, color.B),
-            new Point(0, 0),
-            new Point(0, 1));
-        fillBrush.Freeze();
-
-        var strokePen = new Pen(new SolidColorBrush(color), 2.0)
-        {
-            LineJoin = PenLineJoin.Round,
-            StartLineCap = PenLineCap.Round,
-            EndLineCap = PenLineCap.Round
-        };
-        strokePen.Freeze();
 
         dc.DrawGeometry(fillBrush, null, areaGeometry);
         dc.DrawGeometry(null, strokePen, lineGeometry);

@@ -11,16 +11,64 @@ public sealed class TrafficChartControl : FrameworkElement
     private IReadOnlyList<DailyTrafficPoint> _days = [];
 
     private static readonly Color UploadColor = Color.FromRgb(0x10, 0x9E, 0x4E);
+    private static readonly Typeface SegoeUiTypeface = new("Segoe UI");
+    private static readonly Pen GridPen = CreateGridPen();
+    private static readonly Brush BaselineBrush = CreateFrozenBrush(Color.FromArgb(36, 140, 140, 140));
+    private static readonly LinearGradientBrush UploadBrush = CreateBarBrush(UploadColor);
+
+    private Color _cachedDownloadColor;
+    private LinearGradientBrush? _cachedDownloadBrush;
 
     public TrafficChartControl()
     {
         ClipToBounds = true;
+        IsVisibleChanged += (_, e) =>
+        {
+            if (e.NewValue is true)
+                InvalidateVisual();
+        };
     }
 
     public void UpdateSeries(IReadOnlyList<DailyTrafficPoint> days)
     {
         _days = days;
-        InvalidateVisual();
+        if (IsVisible)
+            InvalidateVisual();
+    }
+
+    private static Pen CreateGridPen()
+    {
+        var pen = new Pen(CreateFrozenBrush(Color.FromArgb(30, 128, 128, 128)), 1);
+        pen.Freeze();
+        return pen;
+    }
+
+    private static Brush CreateFrozenBrush(Color color)
+    {
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        return brush;
+    }
+
+    private static LinearGradientBrush CreateBarBrush(Color color)
+    {
+        var brush = new LinearGradientBrush(
+            color,
+            Color.FromArgb(190, color.R, color.G, color.B),
+            new Point(0, 0),
+            new Point(0, 1));
+        brush.Freeze();
+        return brush;
+    }
+
+    private LinearGradientBrush EnsureDownloadBrush(Color downloadColor)
+    {
+        if (_cachedDownloadBrush is not null && _cachedDownloadColor == downloadColor)
+            return _cachedDownloadBrush;
+
+        _cachedDownloadColor = downloadColor;
+        _cachedDownloadBrush = CreateBarBrush(downloadColor);
+        return _cachedDownloadBrush;
     }
 
     protected override void OnRender(DrawingContext dc)
@@ -49,25 +97,21 @@ public sealed class TrafficChartControl : FrameworkElement
 
         double scaleMax = maxVal * 1.18;
 
-        var gridPen = new Pen(new SolidColorBrush(Color.FromArgb(30, 128, 128, 128)), 1);
-        gridPen.Freeze();
-
         for (int i = 0; i <= 2; i++)
         {
             double y = padTop + (chartH * i / 2.0);
-            dc.DrawLine(gridPen, new Point(0, y), new Point(w, y));
+            dc.DrawLine(GridPen, new Point(0, y), new Point(w, y));
         }
 
         var labelBrush = Application.Current?.TryFindResource("TextFillColorTertiaryBrush") as Brush
                          ?? Brushes.Gray;
         var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
-        var typeface = new Typeface("Segoe UI");
 
         var peakText = new FormattedText(
             Services.LocalizationService.Instance.Format("ChartMaxPerDayFormat", FormatHelper.FormatBytes((long)scaleMax)),
             CultureInfo.CurrentUICulture,
             FlowDirection.LeftToRight,
-            typeface,
+            SegoeUiTypeface,
             10.5,
             labelBrush,
             dpi);
@@ -75,23 +119,9 @@ public sealed class TrafficChartControl : FrameworkElement
 
         Color downloadColor = (Application.Current?.TryFindResource("SystemAccentColorPrimaryBrush") as SolidColorBrush)?.Color
                               ?? Color.FromRgb(0x00, 0x78, 0xD4);
-
-        var downBrush = new LinearGradientBrush(
-            downloadColor,
-            Color.FromArgb(190, downloadColor.R, downloadColor.G, downloadColor.B),
-            new Point(0, 0),
-            new Point(0, 1));
-        downBrush.Freeze();
-
-        var upBrush = new LinearGradientBrush(
-            UploadColor,
-            Color.FromArgb(190, UploadColor.R, UploadColor.G, UploadColor.B),
-            new Point(0, 0),
-            new Point(0, 1));
-        upBrush.Freeze();
-
-        var baselineBrush = new SolidColorBrush(Color.FromArgb(36, 140, 140, 140));
-        baselineBrush.Freeze();
+        var downBrush = EnsureDownloadBrush(downloadColor);
+        var upBrush = UploadBrush;
+        var baselineBrush = BaselineBrush;
 
         double slotW = w / count;
         double barW = Math.Clamp(slotW * 0.28, 5, 22);
@@ -138,7 +168,7 @@ public sealed class TrafficChartControl : FrameworkElement
                     FormatHelper.FormatBytes(dayMax),
                     CultureInfo.CurrentUICulture,
                     FlowDirection.LeftToRight,
-                    typeface,
+                    SegoeUiTypeface,
                     9.5,
                     labelBrush,
                     dpi);
@@ -156,7 +186,7 @@ public sealed class TrafficChartControl : FrameworkElement
                 shortDate,
                 CultureInfo.CurrentUICulture,
                 FlowDirection.LeftToRight,
-                typeface,
+                SegoeUiTypeface,
                 10,
                 labelBrush,
                 dpi);

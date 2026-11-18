@@ -24,6 +24,9 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IUpdateService? _updateService;
     private readonly Queue<long> _downHistory = new();
     private readonly Queue<long> _upHistory = new();
+    private readonly long[] _downHistoryBuffer = new long[HistoryLength];
+    private readonly long[] _upHistoryBuffer = new long[HistoryLength];
+    private IReadOnlyList<DailyTrafficPoint>? _lastTrafficHistory;
     private int _tickCounter;
     private bool _isLoadingSettings;
     private CancellationTokenSource? _createTorrentCts;
@@ -544,8 +547,29 @@ public sealed partial class MainViewModel : ObservableObject
         _downHistory.Enqueue(TotalDownloadSpeed);
         _upHistory.Enqueue(TotalUploadSpeed);
 
-        SpeedHistoryUpdated?.Invoke(_downHistory.ToArray(), _upHistory.ToArray());
-        TrafficHistoryUpdated?.Invoke(_engine.DailyTrafficHistory);
+        IReadOnlyList<long> downSeries;
+        IReadOnlyList<long> upSeries;
+        if (_downHistory.Count == HistoryLength && _upHistory.Count == HistoryLength)
+        {
+            _downHistory.CopyTo(_downHistoryBuffer, 0);
+            _upHistory.CopyTo(_upHistoryBuffer, 0);
+            downSeries = _downHistoryBuffer;
+            upSeries = _upHistoryBuffer;
+        }
+        else
+        {
+            downSeries = _downHistory.ToArray();
+            upSeries = _upHistory.ToArray();
+        }
+
+        SpeedHistoryUpdated?.Invoke(downSeries, upSeries);
+
+        var currentTraffic = _engine.DailyTrafficHistory;
+        if (!ReferenceEquals(_lastTrafficHistory, currentTraffic))
+        {
+            _lastTrafficHistory = currentTraffic;
+            TrafficHistoryUpdated?.Invoke(currentTraffic);
+        }
 
         UpdateCounts();
 

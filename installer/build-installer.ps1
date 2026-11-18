@@ -1,7 +1,8 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$publishDir = Join-Path $repoRoot "publish\win-x64"
+$portableDir = Join-Path $repoRoot "publish\win-x64"
+$appDir = Join-Path $repoRoot "publish\win-x64-app"
 $installerScript = Join-Path $PSScriptRoot "Gem.iss"
 
 Get-Process Gem -ErrorAction SilentlyContinue | ForEach-Object {
@@ -9,10 +10,28 @@ Get-Process Gem -ErrorAction SilentlyContinue | ForEach-Object {
     $_.WaitForExit(5000) | Out-Null
 }
 
-if (Test-Path $publishDir) {
-    Remove-Item $publishDir -Recurse -Force
+foreach ($dir in @($portableDir, $appDir)) {
+    if (Test-Path $dir) {
+        Remove-Item $dir -Recurse -Force
+    }
 }
 
+# 1) Unpacked layout for the Windows installer (maps DLLs directly from disk to minimize private RAM)
+dotnet publish (Join-Path $repoRoot "src\Gem\Gem.csproj") `
+    -c Release `
+    -r win-x64 `
+    --self-contained true `
+    -p:PublishSingleFile=false `
+    -p:DebugType=None `
+    -p:DebugSymbols=false `
+    -o $appDir `
+    --nologo
+
+if ($LASTEXITCODE -ne 0) {
+    throw "dotnet publish (installer app layout) failed with exit code $LASTEXITCODE"
+}
+
+# 2) Portable single-file executable
 dotnet publish (Join-Path $repoRoot "src\Gem\Gem.csproj") `
     -c Release `
     -r win-x64 `
@@ -22,11 +41,11 @@ dotnet publish (Join-Path $repoRoot "src\Gem\Gem.csproj") `
     -p:EnableCompressionInSingleFile=true `
     -p:DebugType=None `
     -p:DebugSymbols=false `
-    -o $publishDir `
+    -o $portableDir `
     --nologo
 
 if ($LASTEXITCODE -ne 0) {
-    throw "dotnet publish failed with exit code $LASTEXITCODE"
+    throw "dotnet publish (portable single-file) failed with exit code $LASTEXITCODE"
 }
 
 $isccCandidates = @(
