@@ -74,30 +74,6 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
-    public void MigrateLegacyAppData_CopiesExistingStateOnceWithoutOverwritingNewData()
-    {
-        string legacyDir = Path.Combine(_tempDir, "Legacy");
-        string targetDir = Path.Combine(_tempDir, "Gem");
-        Directory.CreateDirectory(Path.Combine(legacyDir, "torrents"));
-        Directory.CreateDirectory(Path.Combine(legacyDir, "cache"));
-
-        File.WriteAllText(Path.Combine(legacyDir, "settings.json"), "{\"ListenPort\":55555}");
-        File.WriteAllText(Path.Combine(legacyDir, "session.json"), "[{\"InfoHash\":\"ABC\"}]");
-        File.WriteAllText(Path.Combine(legacyDir, "torrents", "ABC.torrent"), "torrent-bytes");
-
-        SettingsService.MigrateLegacyAppData(legacyDir, targetDir);
-
-        Assert.Equal("{\"ListenPort\":55555}", File.ReadAllText(Path.Combine(targetDir, "settings.json")));
-        Assert.Equal("[{\"InfoHash\":\"ABC\"}]", File.ReadAllText(Path.Combine(targetDir, "session.json")));
-        Assert.Equal("torrent-bytes", File.ReadAllText(Path.Combine(targetDir, "torrents", "ABC.torrent")));
-
-        // Subsequent call must not overwrite modified target data
-        File.WriteAllText(Path.Combine(targetDir, "settings.json"), "{\"ListenPort\":60000}");
-        SettingsService.MigrateLegacyAppData(legacyDir, targetDir);
-        Assert.Equal("{\"ListenPort\":60000}", File.ReadAllText(Path.Combine(targetDir, "settings.json")));
-    }
-
-    [Fact]
     public void LoadSettings_DefaultsUpdateRepositoryToKAdimironGem()
     {
         var service = new SettingsService(_tempDir);

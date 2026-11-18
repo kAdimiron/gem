@@ -28,13 +28,6 @@ public sealed class SettingsService
         string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         _appDataDir = baseDirectory ?? Path.Combine(localAppData, "Gem");
 
-        if (baseDirectory is null)
-        {
-            // One-time migration from pre-rename app data folders so existing torrents and settings are preserved.
-            MigrateLegacyAppData(Path.Combine(localAppData, "Lantern"), _appDataDir);
-            MigrateLegacyAppData(Path.Combine(localAppData, "FluentTorrent"), _appDataDir);
-        }
-
         _settingsPath = Path.Combine(_appDataDir, "settings.json");
         _sessionPath = Path.Combine(_appDataDir, "session.json");
         _trafficStatsPath = Path.Combine(_appDataDir, "traffic_stats.json");
@@ -42,48 +35,6 @@ public sealed class SettingsService
         TorrentsStoreDirectory = Path.Combine(_appDataDir, "torrents");
 
         EnsureDirectories();
-    }
-
-    internal static void MigrateLegacyAppData(string legacyDir, string targetDir)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(legacyDir) ||
-                string.IsNullOrWhiteSpace(targetDir) ||
-                string.Equals(legacyDir, targetDir, StringComparison.OrdinalIgnoreCase) ||
-                !Directory.Exists(legacyDir))
-            {
-                return;
-            }
-
-            if (File.Exists(Path.Combine(targetDir, "settings.json")) ||
-                File.Exists(Path.Combine(targetDir, "session.json")))
-            {
-                return;
-            }
-
-            Directory.CreateDirectory(targetDir);
-            foreach (string sourceSubDir in Directory.EnumerateDirectories(legacyDir, "*", SearchOption.AllDirectories))
-            {
-                string relative = Path.GetRelativePath(legacyDir, sourceSubDir);
-                Directory.CreateDirectory(Path.Combine(targetDir, relative));
-            }
-
-            foreach (string sourceFile in Directory.EnumerateFiles(legacyDir, "*", SearchOption.AllDirectories))
-            {
-                string relative = Path.GetRelativePath(legacyDir, sourceFile);
-                string destFile = Path.Combine(targetDir, relative);
-                string? destParent = Path.GetDirectoryName(destFile);
-                if (!string.IsNullOrEmpty(destParent))
-                    Directory.CreateDirectory(destParent);
-                if (!File.Exists(destFile))
-                    File.Copy(sourceFile, destFile, overwrite: false);
-            }
-        }
-        catch
-        {
-            // Never block startup if legacy folder migration encounters a locked or transient file.
-        }
     }
 
     private void EnsureDirectories()
