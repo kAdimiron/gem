@@ -1,0 +1,202 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Head & Crown Gradients -->
+    <radialGradient id="headCrownGrad" cx="256" cy="175" r="245" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#69C2FA" />
+      <stop offset="48%" stop-color="#3990E2" />
+      <stop offset="100%" stop-color="#1960BD" />
+    </radialGradient>
+
+    <linearGradient id="headTopBevel" x1="256" y1="142" x2="256" y2="235" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#8FD8FF" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#3990E2" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Ear Gradients -->
+    <linearGradient id="earOuterL" x1="74" y1="40" x2="168" y2="232" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7FD0FF" />
+      <stop offset="46%" stop-color="#378BE0" />
+      <stop offset="100%" stop-color="#1A57B0" />
+    </linearGradient>
+    <linearGradient id="earOuterR" x1="438" y1="40" x2="344" y2="232" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7FD0FF" />
+      <stop offset="46%" stop-color="#378BE0" />
+      <stop offset="100%" stop-color="#1A57B0" />
+    </linearGradient>
+
+    <linearGradient id="earInnerL" x1="88" y1="68" x2="156" y2="212" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#BCE9FF" />
+      <stop offset="55%" stop-color="#79C3EC" />
+      <stop offset="100%" stop-color="#488CC0" />
+    </linearGradient>
+    <linearGradient id="earInnerR" x1="424" y1="68" x2="356" y2="212" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#BCE9FF" />
+      <stop offset="55%" stop-color="#79C3EC" />
+      <stop offset="100%" stop-color="#488CC0" />
+    </linearGradient>
+
+    <!-- Eye Mask Gradient -->
+    <linearGradient id="maskGrad" x1="256" y1="246" x2="256" y2="364" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0B3380" />
+      <stop offset="65%" stop-color="#13489F" />
+      <stop offset="100%" stop-color="#1D5BB6" />
+    </linearGradient>
+
+    <!-- Center Forehead / Nose Bridge -->
+    <linearGradient id="bridgeGrad" x1="256" y1="245" x2="256" y2="395" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3990E2" stop-opacity="0" />
+      <stop offset="35%" stop-color="#78C8F8" stop-opacity="0.72" />
+      <stop offset="100%" stop-color="#A3E4FF" stop-opacity="0.98" />
+    </linearGradient>
+
+    <!-- Lower Cheeks / Jaw -->
+    <linearGradient id="cheekGrad" x1="256" y1="342" x2="256" y2="476" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#B0E8FF" />
+      <stop offset="55%" stop-color="#77C3EA" />
+      <stop offset="100%" stop-color="#3D82B4" />
+    </linearGradient>
+
+    <!-- Muzzle Pad -->
+    <radialGradient id="muzzleGrad" cx="256" cy="404" r="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#BDEEFF" stop-opacity="0.95" />
+      <stop offset="68%" stop-color="#89D2F2" stop-opacity="0.88" />
+      <stop offset="100%" stop-color="#6DBBE4" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Glossy Navy Nose -->
+    <linearGradient id="noseGrad" x1="256" y1="393" x2="256" y2="424" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2266D0" />
+      <stop offset="48%" stop-color="#0A2E78" />
+      <stop offset="100%" stop-color="#041545" />
+    </linearGradient>
+
+    <!-- Glowing Cyan Eyes -->
+    <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7EFFFF" stop-opacity="0.92" />
+      <stop offset="46%" stop-color="#1CE3FF" stop-opacity="0.46" />
+      <stop offset="100%" stop-color="#00B8FF" stop-opacity="0" />
+    </radialGradient>
+
+    <linearGradient id="eyeCore" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#D4FFFF" />
+      <stop offset="45%" stop-color="#4EEBFF" />
+      <stop offset="100%" stop-color="#1BC5FF" />
+    </linearGradient>
+
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#05183D" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Ears (Behind Head Crown) -->
+  <g id="ears">
+    <!-- Left Ear -->
+    <path d="M 76,40 C 80,34 88,35 96,42 L 200,145 C 206,151 202,162 192,168 L 106,232 C 95,238 84,232 80,218 C 66,162 64,92 73,48 C 74,44 75,42 76,40 Z"
+          fill="url(#earOuterL)" stroke="#86D8FF" stroke-opacity="0.5" stroke-width="1.5" />
+    <path d="M 89,70 C 91,66 96,67 102,72 L 164,155 C 167,159 164,165 159,169 L 104,210 C 98,214 91,209 89,200 C 81,158 81,105 87,75 Z"
+          fill="url(#earInnerL)" stroke="#CCF0FF" stroke-opacity="0.72" stroke-width="1.5" />
+
+    <!-- Right Ear -->
+    <path d="M 436,40 C 432,34 424,35 416,42 L 312,145 C 306,151 310,162 320,168 L 406,232 C 417,238 428,232 432,218 C 446,162 448,92 439,48 C 438,44 437,42 436,40 Z"
+          fill="url(#earOuterR)" stroke="#86D8FF" stroke-opacity="0.5" stroke-width="1.5" />
+    <path d="M 423,70 C 421,66 416,67 410,72 L 348,155 C 345,159 348,165 353,169 L 408,210 C 414,214 421,209 423,200 C 431,158 431,105 425,75 Z"
+          fill="url(#earInnerR)" stroke="#CCF0FF" stroke-opacity="0.72" stroke-width="1.5" />
+  </g>
+
+  <!-- Main Head Crown -->
+  <g id="head">
+    <path d="M 186,147
+             C 226,143 286,143 326,147
+             C 378,153 418,192 439,248
+             L 476,336
+             C 482,349 481,359 468,369
+             C 424,404 334,454 274,471
+             C 262,475 250,475 238,471
+             C 178,454 88,404 44,369
+             C 31,359 30,349 36,336
+             L 73,248
+             C 94,192 134,153 186,147 Z"
+          fill="url(#headCrownGrad)" />
+
+    <path d="M 186,147 C 226,143 286,143 326,147 C 370,152 406,182 428,226 L 84,226 C 106,182 142,152 186,147 Z"
+          fill="url(#headTopBevel)" />
+  </g>
+
+  <!-- Dark Cobalt Eye Mask Plates (flush with cheek seam) -->
+  <g id="eye-mask">
+    <path d="M 88,342
+             C 92,282 124,248 168,248
+             C 202,248 224,274 226,320
+             L 225,368
+             C 182,346 132,338 88,342 Z"
+          fill="url(#maskGrad)" stroke="#5BB5FC" stroke-opacity="0.55" stroke-width="2" />
+
+    <path d="M 424,342
+             C 420,282 388,248 344,248
+             C 310,248 288,274 286,320
+             L 287,368
+             C 330,346 380,338 424,342 Z"
+          fill="url(#maskGrad)" stroke="#5BB5FC" stroke-opacity="0.55" stroke-width="2" />
+  </g>
+
+  <!-- Lower Cheeks / Pale Ice-Blue Jaw -->
+  <g id="cheeks" filter="url(#softShadow)">
+    <path d="M 44,369
+             C 36,363 36,356 44,352
+             C 96,334 166,343 220,376
+             C 240,388 272,388 292,376
+             C 346,343 416,334 468,352
+             C 476,356 476,363 468,369
+             C 422,406 334,454 274,471
+             C 262,475 250,475 238,471
+             C 178,454 90,406 44,369 Z"
+          fill="url(#cheekGrad)" stroke="#C8EEFF" stroke-opacity="0.55" stroke-width="1.4" />
+  </g>
+
+  <!-- Center Forehead & Nose Bridge -->
+  <g id="nose-bridge">
+    <path d="M 228,252
+             C 242,244 270,244 284,252
+             L 293,344
+             C 295,366 282,386 256,392
+             C 230,386 217,366 219,344 Z"
+          fill="url(#bridgeGrad)" />
+    <path d="M 230,270 L 222,348 C 222,366 232,382 246,390"
+          fill="none" stroke="#BEEBFF" stroke-opacity="0.5" stroke-width="1.8" stroke-linecap="round" />
+    <path d="M 282,270 L 290,348 C 290,366 280,382 266,390"
+          fill="none" stroke="#BEEBFF" stroke-opacity="0.5" stroke-width="1.8" stroke-linecap="round" />
+  </g>
+
+  <!-- Soft Muzzle Cushion, Smile, & Glossy Nose -->
+  <g id="muzzle">
+    <ellipse cx="256" cy="408" rx="64" ry="42" fill="url(#muzzleGrad)" />
+
+    <!-- Subtle Smile Curve -->
+    <path d="M 228,426 Q 242,438 256,427 Q 270,438 284,426"
+          fill="none" stroke="#3D85B8" stroke-opacity="0.45" stroke-width="2.2" stroke-linecap="round" />
+
+    <!-- Glossy Navy Nose -->
+    <path d="M 232,402
+             C 232,395 244,393 256,393
+             C 268,393 280,395 280,402
+             C 280,411 267,422 256,423
+             C 245,422 232,411 232,402 Z"
+          fill="url(#noseGrad)" />
+    <ellipse cx="256" cy="399.5" rx="14" ry="3.2" fill="#82CCFF" fill-opacity="0.48" />
+  </g>
+
+  <!-- Glowing Cyan Eyes -->
+  <g id="eyes">
+    <ellipse cx="166" cy="314" rx="34" ry="38" fill="url(#eyeGlow)" />
+    <ellipse cx="166" cy="314" rx="14.5" ry="19.5" fill="url(#eyeCore)" />
+    <ellipse cx="161.5" cy="304.5" rx="4.5" ry="5.5" fill="#FFFFFF" fill-opacity="0.9" />
+
+    <ellipse cx="346" cy="314" rx="34" ry="38" fill="url(#eyeGlow)" />
+    <ellipse cx="346" cy="314" rx="14.5" ry="19.5" fill="url(#eyeCore)" />
+    <ellipse cx="341.5" cy="304.5" rx="4.5" ry="5.5" fill="#FFFFFF" fill-opacity="0.9" />
+  </g>
+
+  <!-- Top Crown Rim Highlight -->
+  <path d="M 186,147 C 226,143 286,143 326,147"
+        fill="none" stroke="#C6EEFF" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" />
+</svg>

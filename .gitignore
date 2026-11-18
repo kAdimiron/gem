@@ -1,0 +1,30 @@
+# Build outputs
+bin/
+obj/
+publish/
+artifacts/
+TestResults/
+*.log
+*.tmp
+
+# Runtime & user state
+cache/
+torrents/
+*.resume
+session.json
+settings.json
+traffic_stats.json
+libtorrent_session.state
+
+# IDE & editor files
+.vs/
+.vscode/
+*.user
+*.suo
+*.userprefs
+
+# Native CMake build artifacts (keep prebuilt native/win-x64/tsw.dll tracked)
+native/tsw/build/
+lt12_build/
+*.tlog
+*.lastbuildstate
