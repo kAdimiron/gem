@@ -1,6 +1,22 @@
-# Gem
+<div align="center">
+  <img src="src/Gem/Assets/Gem.png" alt="Gem Logo" width="88" />
+  <h1>Gem</h1>
+  <p>Modern Windows BitTorrent client built with <b>.NET 10 (WPF + WPF-UI)</b> and a custom <b>libtorrent-rasterbar 1.2.20</b> native bridge (<code>tsw.dll</code>) featuring classic OS-cached disk I/O, uTP/TCP transport, DHT, LSD, UPnP/NAT-PMP, and installer + portable distribution.</p>
+</div>
 
-Modern Windows BitTorrent client built with **.NET 10 (WPF + WPF-UI)** and a custom **libtorrent-rasterbar 1.2.20** native bridge (`tsw.dll`) featuring classic OS-cached disk I/O, uTP/TCP transport, DHT, LSD, UPnP/NAT-PMP, and single-file self-contained distribution.
+## Screenshots
+
+**Home Dashboard** — real-time speed graph, recent torrents, and all-time daily traffic chart:
+
+![Gem Home Dashboard](docs/images/image_2026-11-18_10-50-46.png)
+
+**Torrent Details** — interactive piece map with live uploading piece highlights, file priorities, peers (`progress_ppm`), and trackers:
+
+![Gem Torrent Details](docs/images/image_2026-11-18_10-51-37.png)
+
+**Torrents & Seeding List** — distinct visual state for seeding vs downloading torrents:
+
+![Gem Seeding View](docs/images/image_2026-11-18_10-51-03.png)
 
 ## Features
 
