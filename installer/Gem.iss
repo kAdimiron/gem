@@ -49,10 +49,13 @@ Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 [CustomMessages]
 english.AssocTorrent=Associate .torrent files with Gem
 english.AssocMagnet=Register magnet: links with Gem
+english.RemoveAppDataPrompt=Do you also want to delete Gem settings, torrent list, and traffic history (%1)?%n%nDownloaded files on your disk will NOT be deleted.
 russian.AssocTorrent=Ассоциировать файлы .torrent с Gem
 russian.AssocMagnet=Открывать magnet-ссылки в Gem
+russian.RemoveAppDataPrompt=Удалить также настройки Gem, список торрентов и историю трафика (%1)?%n%nСкачанные вами файлы на диске НЕ будут удалены.
 ukrainian.AssocTorrent=Асоціювати файли .torrent з Gem
 ukrainian.AssocMagnet=Відкривати magnet-посилання в Gem
+ukrainian.RemoveAppDataPrompt=Видалити також налаштування Gem, список торрентів та історію трафіку (%1)?%n%nЗавантажені вами файли на диску НЕ будуть видалені.
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -96,3 +99,25 @@ Root: HKA; Subkey: "Software\Classes\magnet\shell\open\command"; ValueType: stri
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataDir: string;
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    if UninstallSilent() then
+      Exit;
+
+    DataDir := ExpandConstant('{localappdata}\{#MyAppName}');
+    if DirExists(DataDir) then
+    begin
+      if MsgBox(FmtMessage(CustomMessage('RemoveAppDataPrompt'), [DataDir]),
+           mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+      begin
+        DelTree(DataDir, True, True, True);
+      end;
+    end;
+  end;
+end;
