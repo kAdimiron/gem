@@ -11,26 +11,152 @@
              d:DesignHeight="720"
              d:DesignWidth="1040">
     <UserControl.Resources>
+        <ControlTemplate x:Key="RightCheckMenuItemTemplate" TargetType="{x:Type ui:MenuItem}">
+            <Border x:Name="ItemBorder"
+                    Margin="4,1"
+                    Padding="11,7"
+                    MinWidth="230"
+                    CornerRadius="4"
+                    Background="Transparent"
+                    SnapsToDevicePixels="True">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ContentPresenter x:Name="IconSlot"
+                                      Grid.Column="0"
+                                      Width="18"
+                                      Margin="0,0,12,0"
+                                      VerticalAlignment="Center"
+                                      HorizontalAlignment="Center"
+                                      ContentSource="Icon"
+                                      TextElement.FontSize="16"
+                                      TextElement.Foreground="{TemplateBinding Foreground}" />
+                    <ContentPresenter Grid.Column="1"
+                                      Margin="0,0,18,0"
+                                      VerticalAlignment="Center"
+                                      HorizontalAlignment="Left"
+                                      ContentSource="Header"
+                                      TextElement.Foreground="{TemplateBinding Foreground}"
+                                      RecognizesAccessKey="True" />
+                    <Border x:Name="CheckBoxFrame"
+                            Grid.Column="2"
+                            Width="16"
+                            Height="16"
+                            CornerRadius="4"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Right"
+                            BorderThickness="1.2"
+                            BorderBrush="{DynamicResource TextFillColorSecondaryBrush}"
+                            Background="Transparent"
+                            Opacity="0.65">
+                        <Path x:Name="CheckGlyph"
+                              Width="9.5"
+                              Height="9.5"
+                              Stretch="Uniform"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              Visibility="Collapsed"
+                              Data="M 1,5 L 3.8,8 L 9,2"
+                              Stroke="White"
+                              StrokeThickness="1.8"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round" />
+                    </Border>
+                </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="Icon" Value="{x:Null}">
+                    <Setter TargetName="IconSlot" Property="Visibility" Value="Collapsed" />
+                </Trigger>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter TargetName="CheckBoxFrame" Property="Background" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                    <Setter TargetName="CheckBoxFrame" Property="BorderBrush" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                    <Setter TargetName="CheckBoxFrame" Property="Opacity" Value="1" />
+                    <Setter TargetName="CheckGlyph" Property="Visibility" Value="Visible" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter TargetName="ItemBorder" Property="Opacity" Value="0.45" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+
         <ContextMenu x:Key="TorrentCardContextMenu"
+                     MinWidth="260"
                      DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource Self}}">
+            <ContextMenu.Resources>
+                <Style TargetType="{x:Type ui:MenuItem}" BasedOn="{StaticResource {x:Type ui:MenuItem}}">
+                    <Setter Property="MinWidth" Value="230" />
+                </Style>
+            </ContextMenu.Resources>
             <ui:MenuItem Header="{Binding StartSelectedMenuHeader}"
                          Icon="{ui:SymbolIcon Play24}"
                          IsEnabled="{Binding CanStartSelectedTorrents}"
                          Command="{Binding StartSelectedTorrentsCommand}" />
-            <ui:MenuItem Header="{Binding PauseSelectedMenuHeader}"
-                         Icon="{ui:SymbolIcon Pause24}"
-                         Visibility="{Binding CanPauseSelectedTorrents, Converter={StaticResource BoolToVisibility}}"
-                         Command="{Binding PauseSelectedTorrentsCommand}" />
-            <ui:MenuItem Header="{Binding StopSelectedMenuHeader}"
+            <ui:MenuItem Header="{Binding StopOrPauseSelectedMenuHeader}"
                          Icon="{ui:SymbolIcon Stop24}"
-                         Visibility="{Binding CanStopSelectedTorrents, Converter={StaticResource BoolToVisibility}}"
-                         Command="{Binding StopSelectedTorrentsCommand}" />
+                         IsEnabled="{Binding CanStopOrPauseSelectedTorrents}"
+                         Command="{Binding StopOrPauseSelectedTorrentsCommand}" />
             <Separator />
             <ui:MenuItem Header="{loc:Tr TorrentsMenuDetails}"
                          Icon="{ui:SymbolIcon Open24}"
-                         Visibility="{Binding IsSingleTorrentSelected, Converter={StaticResource BoolToVisibility}}"
+                         IsEnabled="{Binding IsSingleTorrentSelected}"
                          Command="{Binding OpenSelectedTorrentDetailsCommand}" />
-            <Separator Visibility="{Binding IsSingleTorrentSelected, Converter={StaticResource BoolToVisibility}}" />
+            <ui:MenuItem Header="{loc:Tr CtxCopy}"
+                         Icon="{ui:SymbolIcon Copy24}"
+                         IsEnabled="{Binding HasSelectedTorrents}">
+                <ui:MenuItem Header="{loc:Tr CtxCopyName}"
+                             Command="{Binding CopySelectedTorrentFieldCommand}"
+                             CommandParameter="Name" />
+                <ui:MenuItem Header="{loc:Tr CtxCopyHash}"
+                             Command="{Binding CopySelectedTorrentFieldCommand}"
+                             CommandParameter="InfoHash" />
+                <ui:MenuItem Header="{loc:Tr CtxCopyPath}"
+                             Command="{Binding CopySelectedTorrentFieldCommand}"
+                             CommandParameter="SavePath" />
+                <ui:MenuItem Header="{loc:Tr CtxCopyTrackers}"
+                             Command="{Binding CopySelectedTorrentFieldCommand}"
+                             CommandParameter="Trackers" />
+                <ui:MenuItem Header="{loc:Tr CtxCopyMagnet}"
+                             Command="{Binding CopySelectedTorrentFieldCommand}"
+                             CommandParameter="Magnet" />
+            </ui:MenuItem>
+            <Separator Visibility="{Binding HasSelectedIncompleteTorrents, Converter={StaticResource BoolToVisibility}}" />
+            <ui:MenuItem Header="{loc:Tr CtxAfterCompletion}"
+                         Icon="{ui:SymbolIcon Power24}"
+                         Visibility="{Binding HasSelectedIncompleteTorrents, Converter={StaticResource BoolToVisibility}}">
+                <ui:MenuItem Header="{loc:Tr CtxActionSleep}"
+                             Template="{StaticResource RightCheckMenuItemTemplate}"
+                             IsChecked="{Binding IsSelectedDownloadsSleepChecked, Mode=OneWay}"
+                             Command="{Binding ToggleSelectedDownloadsPostActionCommand}"
+                             CommandParameter="{x:Static models:PostCompletionAction.Sleep}" />
+                <ui:MenuItem Header="{loc:Tr CtxActionHibernate}"
+                             Template="{StaticResource RightCheckMenuItemTemplate}"
+                             IsChecked="{Binding IsSelectedDownloadsHibernateChecked, Mode=OneWay}"
+                             Command="{Binding ToggleSelectedDownloadsPostActionCommand}"
+                             CommandParameter="{x:Static models:PostCompletionAction.Hibernate}" />
+                <ui:MenuItem Header="{loc:Tr CtxActionShutdown}"
+                             Template="{StaticResource RightCheckMenuItemTemplate}"
+                             IsChecked="{Binding IsSelectedDownloadsShutdownChecked, Mode=OneWay}"
+                             Command="{Binding ToggleSelectedDownloadsPostActionCommand}"
+                             CommandParameter="{x:Static models:PostCompletionAction.Shutdown}" />
+            </ui:MenuItem>
+            <ui:MenuItem Header="{loc:Tr CtxSeedAfterDownload}"
+                         Icon="{ui:SymbolIcon ArrowUpload24}"
+                         Template="{StaticResource RightCheckMenuItemTemplate}"
+                         IsChecked="{Binding AreSelectedDownloadsSeedEnabled, Mode=OneWay}"
+                         Command="{Binding ToggleSelectedDownloadsSeedCommand}"
+                         Visibility="{Binding HasSelectedIncompleteTorrents, Converter={StaticResource BoolToVisibility}}" />
+            <Separator />
             <ui:MenuItem Header="{Binding RemoveSelectedMenuHeader}"
                          Icon="{ui:SymbolIcon Delete24}"
                          Foreground="#F16A5C"
@@ -108,6 +234,16 @@
                            Width="34"
                            Padding="0"
                            Command="{Binding PauseAllCommand}" />
+                <ComboBox Width="195"
+                          Margin="8,0,0,0"
+                          VerticalAlignment="Center"
+                          Padding="10,5,10,5"
+                          MaxDropDownHeight="320"
+                          ToolTip="{loc:Tr TorrentsSortLabel}"
+                          ItemsSource="{Binding SortOptions}"
+                          DisplayMemberPath="Label"
+                          SelectedValuePath="Kind"
+                          SelectedValue="{Binding SelectedSort, Mode=TwoWay, ValidatesOnExceptions=False, ValidatesOnDataErrors=False}" />
             </StackPanel>
         </Grid>
 
@@ -207,9 +343,19 @@
                                     Margin="0,0,14,0"
                                     VerticalAlignment="Center"
                                     Background="{Binding StatusKind, Converter={StaticResource StatusBrushConverter}}">
-                                <ui:SymbolIcon Symbol="ArrowDownload24"
-                                               FontSize="20"
-                                               Foreground="White" />
+                                <ui:SymbolIcon FontSize="20"
+                                               Foreground="White">
+                                    <ui:SymbolIcon.Style>
+                                        <Style TargetType="ui:SymbolIcon">
+                                            <Setter Property="Symbol" Value="ArrowDownload24" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:TorrentStatusKind.Seeding}">
+                                                    <Setter Property="Symbol" Value="ArrowUpload24" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ui:SymbolIcon.Style>
+                                </ui:SymbolIcon>
                             </Border>
 
                             <!-- Title, Progress, Stats -->
@@ -228,8 +374,18 @@
                                             Background="{Binding StatusKind, Converter={StaticResource StatusBrushConverter}}">
                                         <TextBlock Text="{Binding StatusText}"
                                                    FontSize="10.5"
-                                                   FontWeight="SemiBold"
-                                                   Foreground="White" />
+                                                   FontWeight="SemiBold">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="White" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:TorrentStatusKind.Downloading}">
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                     </Border>
                                 </StackPanel>
 
@@ -239,20 +395,26 @@
                                              Margin="0,8,0,6"
                                              Foreground="{Binding StatusKind, Converter={StaticResource StatusBrushConverter}}" />
 
-                                <TextBlock FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-                                    <Run Text="{Binding DownloadedBytes, Mode=OneWay, Converter={StaticResource BytesConverter}}" />
-                                    <Run Text="{loc:Tr TorrentsOfPrefix}" />
-                                    <Run Text="{Binding TotalSize, Mode=OneWay, Converter={StaticResource BytesConverter}}" />
-                                    <Run Text=" (" />
-                                    <Run Text="{Binding Progress, Mode=OneWay, StringFormat={}{0:0.0}%}" />
-                                    <Run Text=")" />
-                                    <Run Text="{loc:Tr TorrentsPeersInlinePrefix}" />
-                                    <Run Text="{Binding ConnectedPeers, Mode=OneWay}" />
-                                    <Run Text="{loc:Tr TorrentsSeedsInlinePrefix}" />
-                                    <Run Text="{Binding TotalSeeders, Mode=OneWay}" />
-                                    <Run Text="{loc:Tr TorrentsEtaInlinePrefix}" />
-                                    <Run Text="{Binding Eta, Mode=OneWay, Converter={StaticResource EtaConverter}}" />
-                                </TextBlock>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                        <Run Text="{Binding DownloadedBytes, Mode=OneWay, Converter={StaticResource BytesConverter}}" />
+                                        <Run Text="{loc:Tr TorrentsOfPrefix}" />
+                                        <Run Text="{Binding TotalSize, Mode=OneWay, Converter={StaticResource BytesConverter}}" />
+                                        <Run Text=" (" />
+                                        <Run Text="{Binding Progress, Mode=OneWay, StringFormat={}{0:0.0}%}" />
+                                        <Run Text=")" />
+                                        <Run Text="{loc:Tr TorrentsPeersInlinePrefix}" />
+                                        <Run Text="{Binding ConnectedPeers, Mode=OneWay}" />
+                                        <Run Text="{loc:Tr TorrentsSeedsInlinePrefix}" />
+                                        <Run Text="{Binding TotalSeeders, Mode=OneWay}" />
+                                    </TextBlock>
+                                    <TextBlock FontSize="12"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Visibility="{Binding IsCompleted, Converter={StaticResource InverseBoolToVisibility}}">
+                                        <Run Text="{loc:Tr TorrentsEtaInlinePrefix}" />
+                                        <Run Text="{Binding Eta, Mode=OneWay, Converter={StaticResource EtaConverter}}" />
+                                    </TextBlock>
+                                </StackPanel>
                             </StackPanel>
 
                             <!-- Live Speeds -->
@@ -271,7 +433,7 @@
                                 <TextBlock HorizontalAlignment="Right"
                                            FontSize="12"
                                            Margin="0,3,0,0"
-                                           Foreground="#109E4E">
+                                           Foreground="{DynamicResource GemSeedingTextBrush}">
                                     <Run Text="↑ " />
                                     <Run Text="{Binding UploadSpeed, Mode=OneWay, Converter={StaticResource SpeedConverter}}" />
                                 </TextBlock>

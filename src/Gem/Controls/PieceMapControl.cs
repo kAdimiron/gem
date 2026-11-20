@@ -22,13 +22,21 @@ public sealed class PieceMapControl : FrameworkElement
         nameof(TotalPieces),
         typeof(int),
         typeof(PieceMapControl),
-        new FrameworkPropertyMetadata(0, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata(0, FrameworkPropertyMetadataOptions.AffectsRender, OnTotalPiecesChanged));
+
+    public static readonly DependencyProperty IsSeedingProperty = DependencyProperty.Register(
+        nameof(IsSeeding),
+        typeof(bool),
+        typeof(PieceMapControl),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsRender));
 
     private const double FadeInSeconds = 0.22;
     private const double FadeOutSeconds = 0.38;
     private const int PartialBrushBuckets = 16;
     private const int BorderPenBuckets = 32;
 
+    private static readonly Color DefaultDownloadAccentColor = Color.FromRgb(0x01, 0x85, 0x74);
+    private static readonly Color SeedingAccentColor = Color.FromRgb(0x7C, 0x3A, 0xED);
     private static readonly Brush EmptyBrush = CreateFrozenBrush(Color.FromArgb(28, 140, 140, 140));
 
     private readonly DispatcherTimer _animTimer;
@@ -68,6 +76,12 @@ public sealed class PieceMapControl : FrameworkElement
         set => SetValue(TotalPiecesProperty, value);
     }
 
+    public bool IsSeeding
+    {
+        get => (bool)GetValue(IsSeedingProperty);
+        set => SetValue(IsSeedingProperty, value);
+    }
+
     public PieceMapControl()
     {
         ClipToBounds = true;
@@ -80,8 +94,25 @@ public sealed class PieceMapControl : FrameworkElement
         IsVisibleChanged += (_, e) =>
         {
             if (e.NewValue is false)
+            {
                 _animTimer.Stop();
+            }
+            else if (e.NewValue is true)
+            {
+                _lastTickUtc = DateTime.UtcNow;
+                InvalidateVisual();
+                if ((UploadingPieces is { Count: > 0 } || _cellBorderOpacity.Count > 0) && !_animTimer.IsEnabled)
+                    _animTimer.Start();
+            }
         };
+    }
+
+    private static void OnTotalPiecesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is not PieceMapControl control)
+            return;
+
+        control._cellBorderOpacity.Clear();
     }
 
     private static void OnUploadingPiecesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -90,7 +121,7 @@ public sealed class PieceMapControl : FrameworkElement
             return;
 
         control._lastTickUtc = DateTime.UtcNow;
-        if (!control._animTimer.IsEnabled)
+        if (control.IsVisible && !control._animTimer.IsEnabled)
             control._animTimer.Start();
     }
 
@@ -256,8 +287,11 @@ public sealed class PieceMapControl : FrameworkElement
         if (width <= 16 || height <= 16)
             return;
 
-        Color accentColor = (Application.Current?.TryFindResource("SystemAccentColorPrimaryBrush") as SolidColorBrush)?.Color
-                            ?? Color.FromRgb(0x00, 0x78, 0xD4);
+        Color accentColor = IsSeeding
+            ? (Application.Current?.TryFindResource("GemSeedingBrush") as SolidColorBrush)?.Color
+              ?? SeedingAccentColor
+            : (Application.Current?.TryFindResource("SystemAccentColorPrimaryBrush") as SolidColorBrush)?.Color
+              ?? DefaultDownloadAccentColor;
         EnsureAccentBrushCache(accentColor);
         Brush fullBrush = _cachedFullBrush!;
         Brush[] partialBrushes = _cachedPartialBrushes!;
@@ -269,14 +303,18 @@ public sealed class PieceMapControl : FrameworkElement
         var pieces = Pieces;
         int pieceCount = pieces?.Count ?? 0;
 
-        // Seed any new uploading cells on first render if timer hasn't ticked yet
+        // Seed any new uploading cells and ensure any sub-1.0 active cells keep animating
         var activeCells = ComputeUploadingCells();
         bool needTimer = false;
         foreach (int cell in activeCells)
         {
-            if (!_cellBorderOpacity.ContainsKey(cell))
+            if (!_cellBorderOpacity.TryGetValue(cell, out double existingOpacity))
             {
-                _cellBorderOpacity[cell] = 0.0;
+                _cellBorderOpacity[cell] = 0.25;
+                needTimer = true;
+            }
+            else if (existingOpacity < 1.0)
+            {
                 needTimer = true;
             }
         }
@@ -292,7 +330,7 @@ public sealed class PieceMapControl : FrameworkElement
             }
         }
 
-        if (needTimer && !_animTimer.IsEnabled)
+        if (needTimer && !_animTimer.IsEnabled && IsVisible)
         {
             _lastTickUtc = DateTime.UtcNow;
             _animTimer.Start();

@@ -22,16 +22,21 @@ namespace Gem.Services;
 
 /// <summary>
 /// libtorrent-rasterbar (via TorrentSharp.Wrap) BitTorrent engine service with uTP, DHT, sparse storage,
-/// custom BitTorrent 1.0.0 client identity, zero-second stop/removal timeout, and fast resume persistence.
+/// custom Gem v1.0.1 client identity, zero-second stop/removal timeout, and fast resume persistence.
 /// </summary>
 public sealed class LibtorrentEngineService : ITorrentEngineService
 {
+    private const int GlobalSessionConnectionsCeiling = 10000;
+
     private static readonly string[] DefaultDhtRouters =
     [
+        "dht.transmissionbt.com:6881",
+        "dht.libtorrent.org:25401",
+        "router.bt.ouinet.work:6881",
         "router.bittorrent.com:6881",
         "router.utorrent.com:6881",
-        "dht.transmissionbt.com:6881",
-        "dht.libtorrent.org:25401"
+        "dht.aelitis.com:6881",
+        "dht.vuze.com:6881"
     ];
 
     private static readonly TimeSpan UploadingPieceVisibilityWindow = TimeSpan.FromSeconds(2.5);
@@ -39,8 +44,10 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
         typeof(TorrentManager).GetField("TorrentSessionHandle", BindingFlags.Instance | BindingFlags.NonPublic);
 
     private readonly SettingsService _settingsService;
+    private readonly ISystemPowerService? _systemPowerService;
     private readonly Dictionary<string, TorrentManager> _managers = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _pausedHashes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _observedDownloadingHashes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _savePaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (int PieceLength, bool IsPrivate)> _metadataHints = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (long Down, long Up)> _lastManagerBytes = new(StringComparer.OrdinalIgnoreCase);
@@ -88,9 +95,10 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
 
     public event Action? StatsUpdated;
 
-    public LibtorrentEngineService(SettingsService settingsService)
+    public LibtorrentEngineService(SettingsService settingsService, ISystemPowerService? systemPowerService = null)
     {
         _settingsService = settingsService;
+        _systemPowerService = systemPowerService;
         _refreshTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromSeconds(1)
@@ -135,9 +143,9 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
 
             opts.Identity(id =>
             {
-                id.UserAgent("Gem/1.0.0");
-                id.HandshakeClientVersion("BitTorrent 1.0.0");
-                id.PeerFingerprint("-BT1000-");
+                id.UserAgent("Gem/1.0.1");
+                id.HandshakeClientVersion("Gem v1.0.1");
+                id.PeerFingerprint("-GM1010-");
             });
 
             opts.Network(n => ConfigureNetworkOptions(n, settings.ListenPort));
@@ -154,7 +162,7 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
             {
                 l.Download(Math.Max(0, settings.MaxDownloadSpeedKBps) * 1024);
                 l.Upload(Math.Max(0, settings.MaxUploadSpeedKBps) * 1024);
-                l.Connections(Math.Clamp(settings.MaxConnections, 10, 2000));
+                l.Connections(GlobalSessionConnectionsCeiling);
                 l.SeedingOutgoingConnections(true);
             });
 
@@ -277,7 +285,7 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
         sp.Set(new ActiveLimit(30));
         sp.Set(new EnableIncomingUtp(true));
         sp.Set(new EnableOutgoingUtp(true));
-        sp.Set(new ConnectionsLimit(Math.Clamp(settings.MaxConnections, 10, 2000)));
+        sp.Set(new ConnectionsLimit(GlobalSessionConnectionsCeiling));
 
         // Classic libtorrent 1.2.20 LRU disk cache (no mmap_disk_io); Windows OS cache handles bulk I/O.
         sp.Set(new CacheSizeSetting(1024)); // 1024 * 16 KiB = 16 MiB classic disk cache
@@ -292,7 +300,7 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
         sp.Set(new CloseFileInterval(30));
         sp.Set(new AioThreads(2));
         sp.Set(new MaxConcurrentHttpAnnounces(8));
-        sp.Set(new AlertQueueSize(2048));
+        sp.Set(new AlertQueueSize(16384));
     }
 
     private sealed record CacheSizeSetting(int Value) : ISettingsEntry<CacheSizeSetting>
@@ -443,6 +451,8 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
             _pausedHashes.Add(infoHash);
 
         var model = CreateModelFromManager(manager, savePath, entry.TorrentFilePath, entry.MagnetUri, entry.AddedAt);
+        model.SeedAfterDownloadOverride = entry.SeedAfterDownloadOverride;
+        model.PostCompletionAction = entry.PostCompletionAction;
         foreach (string custom in entry.CustomTrackers)
         {
             string? normalizedTracker = FormatHelper.TryNormalizeTrackerUri(custom);
@@ -641,6 +651,7 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
         Torrents.Remove(item);
         CancelPendingCheck(item.InfoHash);
         _pausedHashes.Remove(item.InfoHash);
+        _observedDownloadingHashes.Remove(item.InfoHash);
         _lastForcedReannounceUtc.Remove(item.InfoHash);
         _lastSavedResumeState.Remove(item.InfoHash);
         _metadataHints.Remove(item.InfoHash);
@@ -770,6 +781,18 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
         return Task.CompletedTask;
     }
 
+    public void SetSeedAfterDownloadOverride(TorrentItemModel item, bool? seedAfterDownloadOverride)
+    {
+        item.SeedAfterDownloadOverride = seedAfterDownloadOverride;
+        SaveSessionState();
+    }
+
+    public void SetPostCompletionAction(TorrentItemModel item, PostCompletionAction action)
+    {
+        item.PostCompletionAction = action;
+        SaveSessionState();
+    }
+
     public Task ApplySettingsAsync(AppSettings settings)
     {
         _settingsService.SaveSettings(settings);
@@ -793,7 +816,7 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
             {
                 l.Download(Math.Max(0, settings.MaxDownloadSpeedKBps) * 1024);
                 l.Upload(Math.Max(0, settings.MaxUploadSpeedKBps) * 1024);
-                l.Connections(Math.Clamp(settings.MaxConnections, 10, 2000));
+                l.Connections(GlobalSessionConnectionsCeiling);
                 l.SeedingOutgoingConnections(true);
             });
 
@@ -801,11 +824,13 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
             opts.Advanced(sp => ApplyAdvancedSettingsPack(sp, settings));
         });
 
-        if (settings.DefaultTrackers.Count > 0)
+        int perTorrentConnections = NormalizePerTorrentMaxConnections(settings.MaxConnections);
+        foreach (var item in Torrents.ToList())
         {
-            foreach (var item in Torrents.ToList())
+            if (_managers.TryGetValue(item.InfoHash, out var manager))
             {
-                if (_managers.TryGetValue(item.InfoHash, out var manager))
+                ApplyMaxConnectionsToManager(manager, perTorrentConnections);
+                if (settings.DefaultTrackers.Count > 0)
                 {
                     ApplyDefaultTrackersToManager(manager, settings.DefaultTrackers);
                     SyncTrackers(manager, item);
@@ -910,7 +935,33 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
     {
         _managers[model.InfoHash] = manager;
         RegisterTorrentNames(model.InfoHash, manager.Info?.Metadata.Name, model.Name);
+        ApplyMaxConnectionsToManager(manager, _settingsService.Current.MaxConnections);
         Torrents.Insert(0, model);
+    }
+
+    internal static int NormalizePerTorrentMaxConnections(int value) => Math.Clamp(value, 10, 2000);
+
+    internal int GetTorrentMaxConnections(string infoHash)
+    {
+        if (!_managers.TryGetValue(NormalizeHash(infoHash), out var manager))
+            return -1;
+        if (TorrentManagerHandleField?.GetValue(manager) is not nint handle || handle == IntPtr.Zero)
+            return -1;
+        return GetTorrentMaxConnectionsNative(handle);
+    }
+
+    private static void ApplyMaxConnectionsToManager(TorrentManager manager, int maxConnections)
+    {
+        if (TorrentManagerHandleField?.GetValue(manager) is not nint handle || handle == IntPtr.Zero)
+            return;
+
+        try
+        {
+            SetTorrentMaxConnections(handle, NormalizePerTorrentMaxConnections(maxConnections));
+        }
+        catch
+        {
+        }
     }
 
     private async Task RefreshAllTickAsync()
@@ -1179,6 +1230,21 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
         model.UploadedBytes = st.AllTimeUpload > 0 ? st.AllTimeUpload : st.BytesUploaded;
 
         bool isSeedingState = st.State is TorrentState.Seeding or TorrentState.Finished;
+        if (!isPaused && !isChecking)
+        {
+            if (st.State == TorrentState.Downloading && progressPct < 99.99)
+            {
+                _observedDownloadingHashes.Add(hash);
+            }
+            else if (isSeedingState && _observedDownloadingHashes.Remove(hash))
+            {
+                if (HandleDownloadCompletedTransition(model, manager.Stop))
+                {
+                    isPaused = true;
+                }
+            }
+        }
+
         bool isInactive = isPaused || isChecking || st.State == TorrentState.Errored;
 
         model.DownloadSpeed = isInactive || isSeedingState ? 0 : Math.Max(0, st.DownloadRate);
@@ -1259,6 +1325,32 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
 
         if (isInactive && model.UploadingPieces.Count > 0)
             UpdateModelUploadingPieces(model);
+    }
+
+    internal bool HandleDownloadCompletedTransition(TorrentItemModel model, Action? stopManagerAction = null)
+    {
+        bool shouldSeed = model.GetEffectiveSeedAfterDownload(_settingsService.Current.SeedAfterDownload);
+        if (!shouldSeed)
+        {
+            _pausedHashes.Add(model.InfoHash);
+            stopManagerAction?.Invoke();
+        }
+
+        PostCompletionAction action = model.PostCompletionAction;
+        if (action != PostCompletionAction.None)
+        {
+            model.PostCompletionAction = PostCompletionAction.None;
+        }
+
+        SaveSessionState();
+        StatsUpdated?.Invoke();
+
+        if (action != PostCompletionAction.None)
+        {
+            _systemPowerService?.Execute(action);
+        }
+
+        return !shouldSeed;
     }
 
     private void SyncFiles(TorrentManager manager, TorrentItemModel model, byte[]? sharedPieceMap = null)
@@ -1838,7 +1930,9 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
             MagnetUri = t.MagnetUri,
             WasPaused = t.StatusKind is TorrentStatusKind.Paused or TorrentStatusKind.Stopped,
             AddedAt = t.AddedAt,
-            CustomTrackers = t.CustomTrackers.ToList()
+            CustomTrackers = t.CustomTrackers.ToList(),
+            SeedAfterDownloadOverride = t.SeedAfterDownloadOverride,
+            PostCompletionAction = t.PostCompletionAction
         });
         _settingsService.SaveSession(entries);
     }
@@ -2435,4 +2529,10 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
 
     [DllImport("tsw", CallingConvention = CallingConvention.Cdecl, EntryPoint = "destroy_torrent_peer_progress_list")]
     private static extern void DestroyTorrentPeerProgressList(ref NativePeerProgressList list);
+
+    [DllImport("tsw", CallingConvention = CallingConvention.Cdecl, EntryPoint = "get_torrent_max_connections")]
+    private static extern int GetTorrentMaxConnectionsNative(nint torrentHandle);
+
+    [DllImport("tsw", CallingConvention = CallingConvention.Cdecl, EntryPoint = "set_torrent_max_connections")]
+    private static extern void SetTorrentMaxConnections(nint torrentHandle, int limit);
 }

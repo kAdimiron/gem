@@ -954,6 +954,16 @@ TSW_EXPORT void TSW_CALL set_torrent_download_limit(lt::torrent_handle* torrent,
     }
 }
 
+TSW_EXPORT int32_t TSW_CALL get_torrent_max_connections(lt::torrent_handle* torrent) {
+    return (torrent && torrent->is_valid()) ? torrent->max_connections() : -1;
+}
+
+TSW_EXPORT void TSW_CALL set_torrent_max_connections(lt::torrent_handle* torrent, int32_t limit) {
+    if (torrent && torrent->is_valid()) {
+        torrent->set_max_connections(limit);
+    }
+}
+
 TSW_EXPORT int32_t TSW_CALL get_torrent_queue_position(lt::torrent_handle* torrent) {
     return (torrent && torrent->is_valid()) ? static_cast<int32_t>(torrent->queue_position()) : -1;
 }

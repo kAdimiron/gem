@@ -85,17 +85,31 @@ public partial class TorrentsView : UserControl
 
     private void ListViewItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
-        // Only Ctrl+Click is allowed to modify selection; right-click never alters selection.
-        if (sender is ListViewItem item && item.IsSelected)
-            item.Focus();
+        if (sender is ListViewItem item)
+        {
+            if (!item.IsSelected)
+            {
+                TorrentsListView.SelectedItems.Clear();
+                item.IsSelected = true;
+            }
 
-        e.Handled = true;
+            item.Focus();
+        }
     }
 
     private void ListViewItem_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
-        if (sender is not ListViewItem item || !item.IsSelected)
+        if (sender is not ListViewItem item)
+        {
             e.Handled = true;
+            return;
+        }
+
+        if (!item.IsSelected)
+        {
+            TorrentsListView.SelectedItems.Clear();
+            item.IsSelected = true;
+        }
     }
 
     private void TorrentsListView_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)

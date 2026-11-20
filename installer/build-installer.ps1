@@ -22,6 +22,7 @@ dotnet publish (Join-Path $repoRoot "src\Gem\Gem.csproj") `
     -r win-x64 `
     --self-contained true `
     -p:PublishSingleFile=false `
+    -p:PublishReadyToRun=true `
     -p:DebugType=None `
     -p:DebugSymbols=false `
     -o $appDir `
@@ -37,6 +38,7 @@ dotnet publish (Join-Path $repoRoot "src\Gem\Gem.csproj") `
     -r win-x64 `
     --self-contained true `
     -p:PublishSingleFile=true `
+    -p:PublishReadyToRun=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:EnableCompressionInSingleFile=true `
     -p:DebugType=None `
@@ -67,3 +69,10 @@ if (-not $iscc) {
 if ($LASTEXITCODE -ne 0) {
     throw "ISCC.exe failed with exit code $LASTEXITCODE"
 }
+
+[xml]$csproj = Get-Content (Join-Path $repoRoot "src\Gem\Gem.csproj")
+$appVersion = $csproj.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+if (-not $appVersion) { $appVersion = "1.0.1" }
+$zipOut = Join-Path $repoRoot "publish\installer\Gem-v$appVersion-unpack-win-amd64.zip"
+if (Test-Path $zipOut) { Remove-Item $zipOut -Force }
+Compress-Archive -Path (Join-Path $appDir "*") -DestinationPath $zipOut -CompressionLevel Optimal -Force

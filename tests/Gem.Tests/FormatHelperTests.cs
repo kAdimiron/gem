@@ -110,14 +110,14 @@ public class FormatHelperTests
     }
 
     [Fact]
-    public void StatusKindToBrushConverter_UsesDistinctPurpleForSeeding()
+    public void StatusKindToBrushConverter_UsesDistinctThemeColorsForDownloadingAndSeeding()
     {
         var converter = new StatusKindToBrushConverter();
         var seedingBrush = Assert.IsType<SolidColorBrush>(converter.Convert(TorrentStatusKind.Seeding, typeof(Brush), null!, CultureInfo.InvariantCulture));
         var downloadingBrush = Assert.IsType<SolidColorBrush>(converter.Convert(TorrentStatusKind.Downloading, typeof(Brush), null!, CultureInfo.InvariantCulture));
 
-        Assert.True(seedingBrush.Color.R > seedingBrush.Color.G && seedingBrush.Color.B > seedingBrush.Color.G,
-            $"Expected purple brush for Seeding, got {seedingBrush.Color}");
+        Assert.Equal(Color.FromRgb(0x01, 0x85, 0x74), downloadingBrush.Color);
+        Assert.Equal(Color.FromRgb(0x10, 0x9E, 0x4E), seedingBrush.Color);
         Assert.NotEqual(downloadingBrush.Color, seedingBrush.Color);
     }
 }

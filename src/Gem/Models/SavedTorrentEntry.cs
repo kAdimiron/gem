@@ -17,4 +17,8 @@ public sealed class SavedTorrentEntry
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
 
     public List<string> CustomTrackers { get; set; } = [];
+
+    public bool? SeedAfterDownloadOverride { get; set; }
+
+    public PostCompletionAction PostCompletionAction { get; set; }
 }

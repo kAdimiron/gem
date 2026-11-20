@@ -67,8 +67,8 @@
                                    Margin="0,4,0,0"
                                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                     </StackPanel>
-                    <Border Grid.Column="1" Width="38" Height="38" CornerRadius="8" Background="#1A107C10" VerticalAlignment="Center">
-                        <ui:SymbolIcon Symbol="ArrowUpload24" FontSize="20" Foreground="#109E4E" />
+                    <Border Grid.Column="1" Width="38" Height="38" CornerRadius="8" Background="{DynamicResource GemSeedingTintBrush}" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="ArrowUpload24" FontSize="20" Foreground="{DynamicResource GemSeedingBrush}" />
                     </Border>
                 </Grid>
             </Border>
@@ -167,7 +167,7 @@
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <Ellipse Width="9" Height="9" Fill="{DynamicResource SystemAccentColorPrimaryBrush}" Margin="0,0,6,0" />
                             <TextBlock Text="{loc:Tr HomeLegendDownload}" FontSize="12" Margin="0,0,12,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            <Ellipse Width="9" Height="9" Fill="#109E4E" Margin="0,0,6,0" />
+                            <Ellipse Width="9" Height="9" Fill="{DynamicResource GemSeedingBrush}" Margin="0,0,6,0" />
                             <TextBlock Text="{loc:Tr HomeLegendUpload}" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                     </Grid>
@@ -336,7 +336,7 @@
                             <Run Text="{Binding AllTimeDownloadedBytes, Mode=OneWay, Converter={StaticResource BytesConverter}}" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
                         </TextBlock>
 
-                        <Ellipse Width="9" Height="9" Fill="#109E4E" Margin="0,0,6,0" />
+                        <Ellipse Width="9" Height="9" Fill="{DynamicResource GemSeedingBrush}" Margin="0,0,6,0" />
                         <TextBlock FontSize="12" Margin="0,0,16,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                             <Run Text="{loc:Tr HomeUploadedLabel}" />
                             <Run Text="{Binding AllTimeUploadedBytes, Mode=OneWay, Converter={StaticResource BytesConverter}}" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />

@@ -92,6 +92,136 @@
                 </ComboBox>
             </ui:CardControl>
 
+            <ui:CardControl Margin="0,0,0,8" Icon="{ui:SymbolIcon Color24}">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="{loc:Tr SettingsColorThemeTitle}" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="{loc:Tr SettingsColorThemeDesc}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel.Resources>
+                        <Style x:Key="ColorSwatchRadioStyle" TargetType="RadioButton">
+                            <Setter Property="Cursor" Value="Hand" />
+                            <Setter Property="Width" Value="42" />
+                            <Setter Property="Height" Value="42" />
+                            <Setter Property="Margin" Value="0,0,6,0" />
+                            <Setter Property="GroupName" Value="GemColorTheme" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="RadioButton">
+                                        <Border x:Name="OuterFrame"
+                                                CornerRadius="7"
+                                                Padding="2"
+                                                BorderThickness="2"
+                                                BorderBrush="Transparent"
+                                                Background="Transparent"
+                                                SnapsToDevicePixels="True">
+                                            <Grid>
+                                                <Border x:Name="SwatchBox"
+                                                        CornerRadius="5"
+                                                        Background="{TemplateBinding Background}"
+                                                        BorderThickness="1"
+                                                        BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                                                <Border x:Name="CheckCornerBadge"
+                                                        Width="15"
+                                                        Height="15"
+                                                        CornerRadius="0,4,0,4"
+                                                        HorizontalAlignment="Right"
+                                                        VerticalAlignment="Top"
+                                                        Visibility="Collapsed"
+                                                        Background="{DynamicResource TextFillColorPrimaryBrush}">
+                                                    <Path Width="9"
+                                                          Height="9"
+                                                          Stretch="Uniform"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"
+                                                          Data="M 1,4.8 L 3.8,7.6 L 9,1.8"
+                                                          Stroke="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                                                          StrokeThickness="1.7"
+                                                          StrokeStartLineCap="Round"
+                                                          StrokeEndLineCap="Round"
+                                                          StrokeLineJoin="Round" />
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="OuterFrame" Property="BorderBrush" Value="{DynamicResource ControlStrokeColorSecondaryBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="OuterFrame" Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                <Setter TargetName="SwatchBox" Property="BorderThickness" Value="0" />
+                                                <Setter TargetName="CheckCornerBadge" Property="Visibility" Value="Visible" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </StackPanel.Resources>
+
+                    <RadioButton Style="{StaticResource ColorSwatchRadioStyle}"
+                                 IsChecked="{Binding IsMintColorThemeSelected, Mode=OneWay}"
+                                 Command="{Binding SelectColorThemeCommand}"
+                                 CommandParameter="{x:Static models:AppColorTheme.Mint}">
+                        <RadioButton.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#018574" Offset="0" />
+                                <GradientStop Color="#018574" Offset="0.495" />
+                                <GradientStop Color="#109E4E" Offset="0.505" />
+                                <GradientStop Color="#109E4E" Offset="1" />
+                            </LinearGradientBrush>
+                        </RadioButton.Background>
+                    </RadioButton>
+
+                    <RadioButton Style="{StaticResource ColorSwatchRadioStyle}"
+                                 IsChecked="{Binding IsTomatoColorThemeSelected, Mode=OneWay}"
+                                 Command="{Binding SelectColorThemeCommand}"
+                                 CommandParameter="{x:Static models:AppColorTheme.Tomato}">
+                        <RadioButton.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#DC3E26" Offset="0" />
+                                <GradientStop Color="#DC3E26" Offset="0.495" />
+                                <GradientStop Color="#EA7317" Offset="0.505" />
+                                <GradientStop Color="#EA7317" Offset="1" />
+                            </LinearGradientBrush>
+                        </RadioButton.Background>
+                    </RadioButton>
+
+                    <RadioButton Style="{StaticResource ColorSwatchRadioStyle}"
+                                 IsChecked="{Binding IsPurpleColorThemeSelected, Mode=OneWay}"
+                                 Command="{Binding SelectColorThemeCommand}"
+                                 CommandParameter="{x:Static models:AppColorTheme.Purple}">
+                        <RadioButton.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#7C3AED" Offset="0" />
+                                <GradientStop Color="#7C3AED" Offset="0.495" />
+                                <GradientStop Color="#5B21B6" Offset="0.505" />
+                                <GradientStop Color="#5B21B6" Offset="1" />
+                            </LinearGradientBrush>
+                        </RadioButton.Background>
+                    </RadioButton>
+
+                    <RadioButton Style="{StaticResource ColorSwatchRadioStyle}"
+                                 Margin="0"
+                                 IsChecked="{Binding IsSkyColorThemeSelected, Mode=OneWay}"
+                                 Command="{Binding SelectColorThemeCommand}"
+                                 CommandParameter="{x:Static models:AppColorTheme.Sky}">
+                        <RadioButton.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#8DBCD8" Offset="0" />
+                                <GradientStop Color="#8DBCD8" Offset="0.495" />
+                                <GradientStop Color="#1D6F96" Offset="0.505" />
+                                <GradientStop Color="#1D6F96" Offset="1" />
+                            </LinearGradientBrush>
+                        </RadioButton.Background>
+                    </RadioButton>
+                </StackPanel>
+            </ui:CardControl>
+
             <ui:CardControl Margin="0,0,0,8" Icon="{ui:SymbolIcon Globe24}">
                 <ui:CardControl.Header>
                     <StackPanel>
@@ -112,7 +242,7 @@
                           MouseWheel="ComboBox_OnMouseWheel" />
             </ui:CardControl>
 
-            <ui:CardControl Margin="0,0,0,20" Icon="{ui:SymbolIcon Window24}">
+            <ui:CardControl Margin="0,0,0,8" Icon="{ui:SymbolIcon Window24}">
                 <ui:CardControl.Header>
                     <StackPanel>
                         <TextBlock Text="{loc:Tr SettingsMinimizeToTrayTitle}" FontWeight="SemiBold" FontSize="14" />
@@ -122,6 +252,18 @@
                     </StackPanel>
                 </ui:CardControl.Header>
                 <ui:ToggleSwitch IsChecked="{Binding SettingsMinimizeToTrayOnClose, Mode=TwoWay}" />
+            </ui:CardControl>
+
+            <ui:CardControl Margin="0,0,0,20" Icon="{ui:SymbolIcon Power24}">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="{loc:Tr SettingsLaunchAtStartupTitle}" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="{loc:Tr SettingsLaunchAtStartupDesc}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding SettingsLaunchAtStartup, Mode=TwoWay}" />
             </ui:CardControl>
 
             <!-- Section: Network & Protocol -->
@@ -181,6 +323,19 @@
                     </StackPanel>
                 </ui:CardControl.Header>
                 <ui:ToggleSwitch IsChecked="{Binding SettingsEnablePortForwarding, Mode=TwoWay}" />
+            </ui:CardControl>
+
+            <ui:CardControl Margin="0,0,0,8" Icon="{ui:SymbolIcon ArrowUpload24}">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="{loc:Tr SettingsSeedAfterDownloadTitle}" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="{loc:Tr SettingsSeedAfterDownloadDesc}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding SettingsSeedAfterDownload, Mode=TwoWay}" />
             </ui:CardControl>
 
             <ui:CardControl Margin="0,0,0,8" Icon="{ui:SymbolIcon ArrowSync24}">

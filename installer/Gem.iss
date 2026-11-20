@@ -1,5 +1,5 @@
 #define MyAppName "Gem"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "kAdimiron"
 #define MyAppURL "https://github.com/kAdimiron/gem"
 #define MyAppExeName "Gem.exe"
@@ -107,6 +107,9 @@ var
 begin
   if CurUninstallStep = usPostUninstall then
   begin
+    RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', '{#MyAppName}');
+    RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run', '{#MyAppName}');
+
     if UninstallSilent() then
       Exit;
 

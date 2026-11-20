@@ -9,21 +9,40 @@ namespace Gem.Services;
 
 public sealed class ThemeService
 {
-    // Fixed Gem brand accent (#018574) so button and accent colors stay unchanged regardless of Windows personalization.
+    // Fixed Gem Mint brand defaults (#018574 download / #109E4E seeding) independent of Windows personalization.
     public static readonly Color FixedAccentColor = Color.FromRgb(0x01, 0x85, 0x74);
+    public static readonly Color DefaultSeedingColor = Color.FromRgb(0x10, 0x9E, 0x4E);
 
     private bool _eventsSubscribed;
     private bool _isApplyingAccent;
 
     public AppThemeMode CurrentMode { get; private set; } = AppThemeMode.System;
 
+    public AppColorTheme CurrentColorTheme { get; private set; } = AppColorTheme.Mint;
+
     public bool IsDarkActive => ApplicationThemeManager.GetAppTheme() == ApplicationTheme.Dark;
 
     public Color CurrentAccentColor { get; private set; } = FixedAccentColor;
 
-    public void ApplyTheme(AppThemeMode mode, Window? window = null)
+    public Color CurrentSeedingAccentColor { get; private set; } = DefaultSeedingColor;
+
+    public event Action? ThemeChanged;
+
+    public static (Color DownloadColor, Color SeedingColor) GetPalette(AppColorTheme colorTheme) => colorTheme switch
+    {
+        AppColorTheme.Tomato => (Color.FromRgb(0xDC, 0x3E, 0x26), Color.FromRgb(0xEA, 0x73, 0x17)),
+        AppColorTheme.Purple => (Color.FromRgb(0x7C, 0x3A, 0xED), Color.FromRgb(0x5B, 0x21, 0xB6)),
+        AppColorTheme.Sky => (Color.FromRgb(0x8D, 0xBC, 0xD8), Color.FromRgb(0x1D, 0x6F, 0x96)),
+        _ => (FixedAccentColor, DefaultSeedingColor)
+    };
+
+    public void ApplyTheme(AppThemeMode mode, Window? window = null) =>
+        ApplyTheme(mode, CurrentColorTheme, window);
+
+    public void ApplyTheme(AppThemeMode mode, AppColorTheme colorTheme, Window? window = null)
     {
         CurrentMode = mode;
+        CurrentColorTheme = colorTheme;
         EnsureThemeEventsSubscribed();
 
         switch (mode)
@@ -31,27 +50,30 @@ public sealed class ThemeService
             case AppThemeMode.Dark:
                 if (window is not null)
                     SystemThemeWatcher.UnWatch(window);
-                ApplicationThemeManager.Apply(ApplicationTheme.Dark, WindowBackdropType.Mica, false);
-                ApplyFixedAccent(ApplicationTheme.Dark);
+                if (ApplicationThemeManager.GetAppTheme() != ApplicationTheme.Dark)
+                    ApplicationThemeManager.Apply(ApplicationTheme.Dark, WindowBackdropType.Mica, false);
+                ApplyFixedAccent(ApplicationTheme.Dark, colorTheme);
                 break;
 
             case AppThemeMode.Light:
                 if (window is not null)
                     SystemThemeWatcher.UnWatch(window);
-                ApplicationThemeManager.Apply(ApplicationTheme.Light, WindowBackdropType.Mica, false);
-                ApplyFixedAccent(ApplicationTheme.Light);
+                if (ApplicationThemeManager.GetAppTheme() != ApplicationTheme.Light)
+                    ApplicationThemeManager.Apply(ApplicationTheme.Light, WindowBackdropType.Mica, false);
+                ApplyFixedAccent(ApplicationTheme.Light, colorTheme);
                 break;
 
             default:
                 var systemTheme = ApplicationThemeManager.IsMatchedDark()
                     ? ApplicationTheme.Dark
                     : ApplicationTheme.Light;
-                ApplicationThemeManager.Apply(systemTheme, WindowBackdropType.Mica, false);
+                if (ApplicationThemeManager.GetAppTheme() != systemTheme)
+                    ApplicationThemeManager.Apply(systemTheme, WindowBackdropType.Mica, false);
                 if (window is not null)
                 {
                     SystemThemeWatcher.Watch(window, WindowBackdropType.Mica, false);
                 }
-                ApplyFixedAccent(systemTheme);
+                ApplyFixedAccent(systemTheme, colorTheme);
                 break;
         }
     }
@@ -59,11 +81,11 @@ public sealed class ThemeService
     public AppThemeMode ToggleLightDark(Window? window = null)
     {
         var next = IsDarkActive ? AppThemeMode.Light : AppThemeMode.Dark;
-        ApplyTheme(next, window);
+        ApplyTheme(next, CurrentColorTheme, window);
         return next;
     }
 
-    public void ApplyFixedAccent(ApplicationTheme? activeTheme = null)
+    public void ApplyFixedAccent(ApplicationTheme? activeTheme = null, AppColorTheme? colorTheme = null)
     {
         if (_isApplyingAccent)
             return;
@@ -75,8 +97,12 @@ public sealed class ThemeService
             if (resolvedTheme == ApplicationTheme.Unknown)
                 resolvedTheme = ApplicationTheme.Dark;
 
-            Color accent = FixedAccentColor;
+            AppColorTheme resolvedPalette = colorTheme ?? CurrentColorTheme;
+            CurrentColorTheme = resolvedPalette;
+
+            (Color accent, Color seedingAccent) = GetPalette(resolvedPalette);
             CurrentAccentColor = accent;
+            CurrentSeedingAccentColor = seedingAccent;
 
             if (Application.Current is null)
                 return;
@@ -92,6 +118,9 @@ public sealed class ThemeService
 
             var secondaryBrush = CreateAdjustedBrush(accent, resolvedTheme == ApplicationTheme.Dark ? 0.12 : -0.10);
             var tertiaryBrush = CreateAdjustedBrush(accent, resolvedTheme == ApplicationTheme.Dark ? 0.20 : -0.18);
+            var lightAccentTextBrush = resolvedTheme == ApplicationTheme.Light && IsColorLight(accent)
+                ? CreateAdjustedBrush(accent, -0.38)
+                : accentBrush;
 
             Application.Current.Resources["SystemAccentColor"] = accent;
             Application.Current.Resources["SystemAccentColorPrimary"] = accent;
@@ -103,25 +132,73 @@ public sealed class ThemeService
             Application.Current.Resources["AccentFillColorDefaultBrush"] = accentBrush;
             Application.Current.Resources["AccentFillColorSecondaryBrush"] = secondaryBrush;
             Application.Current.Resources["AccentFillColorTertiaryBrush"] = tertiaryBrush;
-            Application.Current.Resources["AccentTextFillColorPrimaryBrush"] = resolvedTheme == ApplicationTheme.Dark ? tertiaryBrush : accentBrush;
+            Application.Current.Resources["AccentTextFillColorPrimaryBrush"] = resolvedTheme == ApplicationTheme.Dark ? tertiaryBrush : lightAccentTextBrush;
             Application.Current.Resources["AccentTextFillColorSecondaryBrush"] = secondaryBrush;
-            Application.Current.Resources["AccentTextFillColorTertiaryBrush"] = accentBrush;
+            Application.Current.Resources["AccentTextFillColorTertiaryBrush"] = lightAccentTextBrush;
+
+            var seedingBrush = new SolidColorBrush(seedingAccent);
+            seedingBrush.Freeze();
+            var seedingTextBrush = resolvedTheme == ApplicationTheme.Dark
+                ? CreateAdjustedBrush(seedingAccent, 0.16)
+                : (IsColorLight(seedingAccent) ? CreateAdjustedBrush(seedingAccent, -0.35) : seedingBrush);
+            var seedingTintBrush = new SolidColorBrush(Color.FromArgb(0x2A, seedingAccent.R, seedingAccent.G, seedingAccent.B));
+            seedingTintBrush.Freeze();
+
+            Application.Current.Resources["GemSeedingColor"] = seedingAccent;
+            Application.Current.Resources["GemSeedingBrush"] = seedingBrush;
+            Application.Current.Resources["GemSeedingTextBrush"] = seedingTextBrush;
+            Application.Current.Resources["GemSeedingTintBrush"] = seedingTintBrush;
 
             var onAccentForeground = IsColorLight(accent) ? Colors.Black : Colors.White;
             var fgBrush = new SolidColorBrush(onAccentForeground);
             fgBrush.Freeze();
+            var disabledTint = new SolidColorBrush(Color.FromArgb(0x66, accent.R, accent.G, accent.B));
+            disabledTint.Freeze();
+
+            Application.Current.Resources["SystemAccentColorBrush"] = accentBrush;
+            Application.Current.Resources["AccentFillColorDefault"] = accentBrush.Color;
+            Application.Current.Resources["AccentFillColorSecondary"] = secondaryBrush.Color;
+            Application.Current.Resources["AccentFillColorTertiary"] = tertiaryBrush.Color;
+            Application.Current.Resources["AccentFillColorSelectedTextBackgroundBrush"] = accentBrush;
+            Application.Current.Resources["TextOnAccentFillColorPrimary"] = onAccentForeground;
+            Application.Current.Resources["TextOnAccentFillColorSecondary"] = onAccentForeground;
             Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"] = fgBrush;
+            Application.Current.Resources["TextOnAccentFillColorSecondaryBrush"] = fgBrush;
             Application.Current.Resources["AccentButtonForeground"] = fgBrush;
             Application.Current.Resources["AccentButtonForegroundPointerOver"] = fgBrush;
             Application.Current.Resources["AccentButtonForegroundPressed"] = fgBrush;
             Application.Current.Resources["AccentButtonBackground"] = accentBrush;
             Application.Current.Resources["AccentButtonBackgroundPointerOver"] = secondaryBrush;
             Application.Current.Resources["AccentButtonBackgroundPressed"] = tertiaryBrush;
+            Application.Current.Resources["AccentButtonBorderBrush"] = accentBrush;
+            Application.Current.Resources["AccentButtonBorderBrushPointerOver"] = secondaryBrush;
+            Application.Current.Resources["AccentButtonBorderBrushPressed"] = tertiaryBrush;
+
+            // Update control-specific accent brushes cached by Wpf.Ui ThemesDictionary
+            Application.Current.Resources["ToggleSwitchFillOn"] = accentBrush;
+            Application.Current.Resources["ToggleSwitchFillOnPointerOver"] = secondaryBrush;
+            Application.Current.Resources["ToggleSwitchFillOnPressed"] = tertiaryBrush;
+            Application.Current.Resources["ToggleSwitchFillOnDisabled"] = disabledTint;
+            Application.Current.Resources["ToggleSwitchStrokeOn"] = accentBrush;
+            Application.Current.Resources["ToggleSwitchStrokeOnPointerOver"] = secondaryBrush;
+            Application.Current.Resources["ToggleSwitchStrokeOnPressed"] = tertiaryBrush;
+            Application.Current.Resources["ToggleSwitchStrokeOnDisabled"] = disabledTint;
+            Application.Current.Resources["ToggleSwitchKnobFillOn"] = fgBrush;
+            Application.Current.Resources["ToggleSwitchKnobFillOnPointerOver"] = fgBrush;
+            Application.Current.Resources["ToggleSwitchKnobFillOnPressed"] = fgBrush;
+            Application.Current.Resources["ToggleSwitchKnobFillOnDisabled"] = fgBrush;
+
+            Application.Current.Resources["CheckBoxCheckBackgroundFillChecked"] = accentBrush;
+            Application.Current.Resources["CheckBoxCheckBackgroundFillCheckedPointerOver"] = secondaryBrush;
+            Application.Current.Resources["CheckBoxCheckBackgroundFillCheckedPressed"] = tertiaryBrush;
+            Application.Current.Resources["CheckBoxCheckBorderBrush"] = accentBrush;
         }
         finally
         {
             _isApplyingAccent = false;
         }
+
+        ThemeChanged?.Invoke();
     }
 
     private void EnsureThemeEventsSubscribed()

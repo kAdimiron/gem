@@ -496,6 +496,343 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Same(engine.Torrents[1], vm.SelectedTorrent);
     }
 
+    [Fact]
+    public void OpenTorrentDetailsCommand_FromHome_SelectsOwningSection()
+    {
+        var engine = new FakeTorrentEngineService();
+        var downloading = new TorrentItemModel
+        {
+            InfoHash = "1111111111111111111111111111111111111111",
+            Name = "ISO Downloading",
+            StatusKind = TorrentStatusKind.Downloading,
+            Progress = 42.0
+        };
+        var seeding = new TorrentItemModel
+        {
+            InfoHash = "2222222222222222222222222222222222222222",
+            Name = "ISO Seeding",
+            StatusKind = TorrentStatusKind.Seeding,
+            Progress = 100.0
+        };
+        var pausedCompleted = new TorrentItemModel
+        {
+            InfoHash = "3333333333333333333333333333333333333333",
+            Name = "ISO Paused Library",
+            StatusKind = TorrentStatusKind.Paused,
+            Progress = 100.0
+        };
+
+        engine.Torrents.Add(downloading);
+        engine.Torrents.Add(seeding);
+        engine.Torrents.Add(pausedCompleted);
+
+        var vm = new MainViewModel(engine, new SettingsService(_tempDir), new ThemeService(), new FakeNotificationService());
+
+        vm.CurrentSection = StoreNavSection.Home;
+        vm.SelectedFilter = TorrentFilterKind.Errors;
+        vm.OpenTorrentDetailsCommand.Execute(downloading);
+        Assert.Equal(StoreNavSection.Downloads, vm.CurrentSection);
+        Assert.Equal(TorrentFilterKind.All, vm.SelectedFilter);
+        Assert.Same(downloading, vm.SelectedTorrent);
+        Assert.True(vm.IsDetailsOpen);
+
+        vm.CurrentSection = StoreNavSection.Home;
+        vm.OpenTorrentDetailsCommand.Execute(seeding);
+        Assert.Equal(StoreNavSection.Seeding, vm.CurrentSection);
+        Assert.Same(seeding, vm.SelectedTorrent);
+        Assert.True(vm.IsDetailsOpen);
+
+        vm.CurrentSection = StoreNavSection.Home;
+        vm.OpenTorrentDetailsCommand.Execute(pausedCompleted);
+        Assert.Equal(StoreNavSection.Library, vm.CurrentSection);
+        Assert.Same(pausedCompleted, vm.SelectedTorrent);
+        Assert.True(vm.IsDetailsOpen);
+    }
+
+    [Fact]
+    public async Task SettingsLaunchAtStartup_SyncsWithStartupServiceAndPersistsSettings()
+    {
+        var engine = new FakeTorrentEngineService();
+        var settings = new SettingsService(_tempDir);
+        var startup = new FakeStartupService { Enabled = true };
+        var vm = new MainViewModel(engine, settings, new ThemeService(), new FakeNotificationService(), startupService: startup);
+
+        await vm.InitializeAsync();
+        Assert.True(vm.SettingsLaunchAtStartup);
+        Assert.True(settings.LoadSettings().LaunchAtStartup);
+
+        vm.SettingsLaunchAtStartup = false;
+        Assert.False(startup.Enabled);
+        Assert.False(settings.LoadSettings().LaunchAtStartup);
+
+        vm.SettingsLaunchAtStartup = true;
+        Assert.True(startup.Enabled);
+        Assert.True(settings.LoadSettings().LaunchAtStartup);
+    }
+
+    [Fact]
+    public async Task RecentTorrents_LimitsToTenAndSortsByAddedAtDescending()
+    {
+        var engine = new FakeTorrentEngineService();
+        DateTime baseTime = new(2026, 11, 20, 10, 0, 0, DateTimeKind.Utc);
+        for (int i = 0; i < 12; i++)
+        {
+            engine.Torrents.Add(new TorrentItemModel
+            {
+                InfoHash = $"{i:D40}",
+                Name = $"Torrent-{i:D2}",
+                StatusKind = TorrentStatusKind.Downloading,
+                AddedAt = baseTime.AddMinutes(i)
+            });
+        }
+
+        // Stopped completed torrent must be excluded from RecentTorrents
+        engine.Torrents.Add(new TorrentItemModel
+        {
+            InfoHash = new string('9', 40),
+            Name = "CompletedStopped",
+            StatusKind = TorrentStatusKind.Stopped,
+            Progress = 100.0,
+            AddedAt = baseTime.AddMinutes(50)
+        });
+
+        var vm = new MainViewModel(engine, new SettingsService(_tempDir), new ThemeService(), new FakeNotificationService());
+        await vm.InitializeAsync();
+
+        Assert.Equal(10, vm.RecentTorrents.Count);
+        Assert.Equal("Torrent-11", vm.RecentTorrents[0].Name);
+        Assert.Equal("Torrent-02", vm.RecentTorrents[9].Name);
+    }
+
+    [Fact]
+    public async Task NavigateToActiveSection_WhileDetailsOpen_ClosesDetailsLikeBack()
+    {
+        var engine = new FakeTorrentEngineService();
+        var item = new TorrentItemModel
+        {
+            InfoHash = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            Name = "Active Download",
+            StatusKind = TorrentStatusKind.Downloading,
+            Progress = 25.0
+        };
+        engine.Torrents.Add(item);
+
+        var vm = new MainViewModel(engine, new SettingsService(_tempDir), new ThemeService(), new FakeNotificationService());
+        await vm.InitializeAsync();
+
+        vm.OpenTorrentDetailsCommand.Execute(item);
+        Assert.Equal(StoreNavSection.Downloads, vm.CurrentSection);
+        Assert.True(vm.IsDetailsOpen);
+        Assert.Same(item, vm.SelectedTorrent);
+
+        await vm.NavigateToCommand.ExecuteAsync(StoreNavSection.Downloads);
+        Assert.Equal(StoreNavSection.Downloads, vm.CurrentSection);
+        Assert.False(vm.IsDetailsOpen);
+        Assert.Null(vm.SelectedTorrent);
+    }
+
+    [Fact]
+    public async Task SelectedSort_SortsSectionListAndPersistsAcrossRestarts()
+    {
+        var engine = new FakeTorrentEngineService();
+        DateTime t0 = new(2026, 11, 20, 8, 0, 0, DateTimeKind.Utc);
+        engine.Torrents.Add(new TorrentItemModel
+        {
+            InfoHash = "1111111111111111111111111111111111111111",
+            Name = "Beta",
+            TotalSize = 300,
+            Progress = 50,
+            DownloadSpeed = 100,
+            UploadSpeed = 500,
+            StatusKind = TorrentStatusKind.Downloading,
+            AddedAt = t0.AddMinutes(1)
+        });
+        engine.Torrents.Add(new TorrentItemModel
+        {
+            InfoHash = "2222222222222222222222222222222222222222",
+            Name = "Alpha",
+            TotalSize = 100,
+            Progress = 90,
+            DownloadSpeed = 400,
+            UploadSpeed = 200,
+            StatusKind = TorrentStatusKind.Downloading,
+            AddedAt = t0.AddMinutes(3)
+        });
+        engine.Torrents.Add(new TorrentItemModel
+        {
+            InfoHash = "3333333333333333333333333333333333333333",
+            Name = "Gamma",
+            TotalSize = 200,
+            Progress = 20,
+            DownloadSpeed = 250,
+            UploadSpeed = 800,
+            StatusKind = TorrentStatusKind.Downloading,
+            AddedAt = t0.AddMinutes(2)
+        });
+
+        var settings = new SettingsService(_tempDir);
+        var vm = new MainViewModel(engine, settings, new ThemeService(), new FakeNotificationService());
+        await vm.InitializeAsync();
+        await vm.NavigateToCommand.ExecuteAsync(StoreNavSection.Downloads);
+
+        Assert.Equal(["Alpha", "Gamma", "Beta"], vm.FilteredTorrents.Select(t => t.Name).ToArray());
+
+        vm.SelectedSort = TorrentSortKind.NameAsc;
+        Assert.Equal(["Alpha", "Beta", "Gamma"], vm.FilteredTorrents.Select(t => t.Name).ToArray());
+        Assert.Equal(TorrentSortKind.NameAsc, settings.LoadSettings().SortKind);
+
+        vm.SelectedSort = TorrentSortKind.SizeDesc;
+        Assert.Equal(["Beta", "Gamma", "Alpha"], vm.FilteredTorrents.Select(t => t.Name).ToArray());
+
+        vm.SelectedSort = TorrentSortKind.UploadSpeedDesc;
+        Assert.Equal(["Gamma", "Beta", "Alpha"], vm.FilteredTorrents.Select(t => t.Name).ToArray());
+
+        bool collectionReset = false;
+        vm.SortOptions.CollectionChanged += (_, _) => collectionReset = true;
+        LocalizationService.Instance.SetLanguage("en-US");
+        Assert.False(collectionReset);
+        Assert.Equal(TorrentSortKind.UploadSpeedDesc, vm.SelectedSort);
+        Assert.Equal("Upload speed", vm.SortOptions.First(o => o.Kind == TorrentSortKind.UploadSpeedDesc).Label);
+    }
+
+    [Fact]
+    public async Task SeedAfterDownloadSettingAndContextMenuOverrides_BehaveAsExpected()
+    {
+        var settingsService = new SettingsService(_tempDir);
+        var engine = new FakeTorrentEngineService();
+        var themeService = new ThemeService();
+
+        var download = new TorrentItemModel
+        {
+            InfoHash = "dl1",
+            Name = "Ubuntu ISO",
+            SavePath = @"D:\Downloads",
+            MagnetUri = "magnet:?xt=urn:btih:dl1",
+            StatusKind = TorrentStatusKind.Downloading,
+            Progress = 42.0
+        };
+        download.Trackers.Add(new TorrentTrackerModel { Uri = "udp://tracker.example.com:6969/announce" });
+        download.CustomTrackers.Add("https://custom.tracker.test/announce");
+        download.CustomTrackers.Add("udp://tracker.example.com:6969/announce");
+
+        var seed = new TorrentItemModel
+        {
+            InfoHash = "seed1",
+            Name = "Fedora ISO",
+            SavePath = @"D:\Seeds",
+            StatusKind = TorrentStatusKind.Seeding,
+            Progress = 100.0
+        };
+        engine.Torrents.Add(download);
+        engine.Torrents.Add(seed);
+
+        var vm = new MainViewModel(engine, settingsService, themeService);
+        string? copied = null;
+        vm.ClipboardTextWriter = text => copied = text;
+        await vm.InitializeAsync();
+
+        Assert.True(vm.SettingsSeedAfterDownload);
+
+        // Selecting seeding-only hides download-only completion actions
+        vm.UpdateSelectedTorrents([seed]);
+        Assert.False(vm.HasSelectedIncompleteTorrents);
+        Assert.True(vm.CanStopOrPauseSelectedTorrents);
+
+        // Selecting download shows download-only items and respects global SeedAfterDownload=true
+        vm.UpdateSelectedTorrents([download]);
+        Assert.True(vm.HasSelectedIncompleteTorrents);
+        Assert.True(vm.AreSelectedDownloadsSeedEnabled);
+        Assert.True(vm.CanStopOrPauseSelectedTorrents);
+
+        // Uncheck Seed override on this download -> override = false
+        vm.AreSelectedDownloadsSeedEnabled = false;
+        Assert.False(vm.AreSelectedDownloadsSeedEnabled);
+        Assert.Equal(false, download.SeedAfterDownloadOverride);
+
+        // Disable global SeedAfterDownload in Settings
+        vm.SettingsSeedAfterDownload = false;
+        await vm.SaveSettingsCommand.ExecuteAsync(null);
+        Assert.False(settingsService.Current.SeedAfterDownload);
+
+        // Enable Seed override on download despite disabled global setting -> override = true
+        vm.AreSelectedDownloadsSeedEnabled = true;
+        Assert.True(vm.AreSelectedDownloadsSeedEnabled);
+        Assert.Equal(true, download.SeedAfterDownloadOverride);
+        vm.ToggleSelectedDownloadsSeedCommand.Execute(null);
+        Assert.False(vm.AreSelectedDownloadsSeedEnabled);
+        vm.ToggleSelectedDownloadsSeedCommand.Execute(null);
+        Assert.True(vm.AreSelectedDownloadsSeedEnabled);
+
+        // Test PostCompletionAction checkable states
+        vm.ToggleSelectedDownloadsPostActionCommand.Execute(PostCompletionAction.Shutdown);
+        Assert.Equal(PostCompletionAction.Shutdown, download.PostCompletionAction);
+        Assert.True(vm.IsSelectedDownloadsShutdownChecked);
+        Assert.False(vm.IsSelectedDownloadsSleepChecked);
+        vm.ToggleSelectedDownloadsPostActionCommand.Execute(PostCompletionAction.Shutdown);
+        Assert.Equal(PostCompletionAction.None, download.PostCompletionAction);
+
+        // Test Copy submenu fields
+        vm.CopySelectedTorrentFieldCommand.Execute("Name");
+        Assert.Equal("Ubuntu ISO", copied);
+        vm.CopySelectedTorrentFieldCommand.Execute("InfoHash");
+        Assert.Equal("dl1", copied);
+        vm.CopySelectedTorrentFieldCommand.Execute("SavePath");
+        Assert.Equal(@"D:\Downloads", copied);
+        vm.CopySelectedTorrentFieldCommand.Execute("Trackers");
+        Assert.Equal($"udp://tracker.example.com:6969/announce{Environment.NewLine}https://custom.tracker.test/announce", copied);
+        vm.CopySelectedTorrentFieldCommand.Execute("Magnet");
+        Assert.Equal("magnet:?xt=urn:btih:dl1", copied);
+
+        // StopOrPauseSelected stops both downloading and seeding selected torrents uniformly
+        vm.UpdateSelectedTorrents([download, seed]);
+        await vm.StopOrPauseSelectedTorrentsCommand.ExecuteAsync(null);
+        Assert.Equal(TorrentStatusKind.Paused, download.StatusKind);
+        Assert.Equal(TorrentStatusKind.Stopped, seed.StatusKind);
+    }
+
+    [Fact]
+    public async Task ColorThemeSelection_DefaultsToMint_AppliesAndPersists()
+    {
+        var settingsService = new SettingsService(_tempDir);
+        var engine = new FakeTorrentEngineService();
+        var themeService = new ThemeService();
+        var vm = new MainViewModel(engine, settingsService, themeService);
+        await vm.InitializeAsync();
+
+        Assert.Equal(AppColorTheme.Mint, vm.SettingsColorTheme);
+        Assert.True(vm.IsMintColorThemeSelected);
+        Assert.Equal(AppColorTheme.Mint, themeService.CurrentColorTheme);
+
+        vm.SelectColorThemeCommand.Execute(AppColorTheme.Tomato);
+        Assert.True(vm.IsTomatoColorThemeSelected);
+        Assert.False(vm.IsMintColorThemeSelected);
+        Assert.Equal(AppColorTheme.Tomato, themeService.CurrentColorTheme);
+        Assert.Equal(AppColorTheme.Tomato, settingsService.LoadSettings().ColorTheme);
+
+        vm.SelectColorThemeCommand.Execute(AppColorTheme.Purple);
+        Assert.True(vm.IsPurpleColorThemeSelected);
+        Assert.Equal(AppColorTheme.Purple, themeService.CurrentColorTheme);
+
+        vm.SelectColorThemeCommand.Execute(AppColorTheme.Sky);
+        Assert.True(vm.IsSkyColorThemeSelected);
+        await vm.SaveSettingsCommand.ExecuteAsync(null);
+        Assert.Equal(AppColorTheme.Sky, themeService.CurrentColorTheme);
+        Assert.Equal(AppColorTheme.Sky, settingsService.LoadSettings().ColorTheme);
+    }
+
+    private sealed class FakeStartupService : IStartupService
+    {
+        public bool Enabled { get; set; }
+
+        public bool IsStartupEnabled() => Enabled;
+
+        public bool SetStartupEnabled(bool enabled)
+        {
+            Enabled = enabled;
+            return true;
+        }
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDir))
@@ -585,7 +922,15 @@ public sealed class MainViewModelTests : IDisposable
             if (match is not null) item.Trackers.Remove(match);
             return Task.CompletedTask;
         }
-        public Task ApplySettingsAsync(AppSettings settings) => Task.CompletedTask;
+        public Task ApplySettingsAsync(AppSettings settings)
+        {
+            _ = settings;
+            return Task.CompletedTask;
+        }
+        public void SetSeedAfterDownloadOverride(TorrentItemModel item, bool? seedAfterDownloadOverride)
+            => item.SeedAfterDownloadOverride = seedAfterDownloadOverride;
+        public void SetPostCompletionAction(TorrentItemModel item, PostCompletionAction action)
+            => item.PostCompletionAction = action;
         public Task RefreshDetailsAsync(TorrentItemModel item) => Task.CompletedTask;
         public Task ShutdownAsync() => Task.CompletedTask;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

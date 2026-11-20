@@ -88,6 +88,15 @@ public sealed partial class TorrentItemModel : ObservableObject
     [ObservableProperty]
     private bool _hasMetadata = true;
 
+    [ObservableProperty]
+    private bool? _seedAfterDownloadOverride;
+
+    [ObservableProperty]
+    private PostCompletionAction _postCompletionAction = PostCompletionAction.None;
+
+    public bool GetEffectiveSeedAfterDownload(bool globalDefault) =>
+        SeedAfterDownloadOverride ?? globalDefault;
+
     public bool IsActiveTransfer =>
         StatusKind is TorrentStatusKind.Downloading or TorrentStatusKind.Seeding or TorrentStatusKind.Metadata or TorrentStatusKind.Checking;
 
@@ -152,5 +161,10 @@ public sealed partial class TorrentItemModel : ObservableObject
         OnPropertyChanged(nameof(UploadedBytes));
         OnPropertyChanged(nameof(PrimarySpeedDisplay));
         OnPropertyChanged(nameof(StatusText));
+    }
+
+    public void NotifyThemeColorsChanged()
+    {
+        OnPropertyChanged(nameof(StatusKind));
     }
 }

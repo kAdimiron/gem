@@ -92,6 +92,46 @@ public sealed class LibtorrentEngineServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task MaxConnections_AppliesPerTorrentIndependentlyAndUpdatesOnApplySettings()
+    {
+        string appData = Path.Combine(_tempDir, "appdata_conn");
+        string downloadDir = Path.Combine(_tempDir, "downloads_conn");
+        Directory.CreateDirectory(downloadDir);
+
+        var settingsService = new SettingsService(appData);
+        settingsService.SaveSettings(new AppSettings
+        {
+            DefaultDownloadPath = downloadDir,
+            ListenPort = 0,
+            EnableDht = false,
+            EnableLocalPeerDiscovery = false,
+            EnablePortForwarding = false,
+            MaxConnections = 100
+        });
+
+        string t1Path = Path.Combine(_tempDir, "first.torrent");
+        string t2Path = Path.Combine(_tempDir, "second.torrent");
+        File.WriteAllBytes(t1Path, BencodeHelper.BuildMinimalTorrent("first.bin", 262144, 262144L * 2, "http://10.255.255.1:6969/announce"));
+        File.WriteAllBytes(t2Path, BencodeHelper.BuildMinimalTorrent("second.bin", 262144, 262144L * 2, "http://10.255.255.1:6969/announce"));
+
+        await using var engine = new LibtorrentEngineService(settingsService);
+        await engine.InitializeAsync();
+
+        var item1 = await engine.AddTorrentFileAsync(t1Path, downloadDir, startImmediately: false);
+        var item2 = await engine.AddTorrentFileAsync(t2Path, downloadDir, startImmediately: false);
+
+        Assert.Equal(100, engine.GetTorrentMaxConnections(item1.InfoHash));
+        Assert.Equal(100, engine.GetTorrentMaxConnections(item2.InfoHash));
+
+        var updated = settingsService.LoadSettings();
+        updated.MaxConnections = 65;
+        await engine.ApplySettingsAsync(updated);
+
+        Assert.Equal(65, engine.GetTorrentMaxConnections(item1.InfoHash));
+        Assert.Equal(65, engine.GetTorrentMaxConnections(item2.InfoHash));
+    }
+
+    [Fact]
     public void BuildRoutableListenInterfaces_ExcludesLoopbackAndLinkLocal()
     {
         var ifaces = LibtorrentEngineService.BuildRoutableListenInterfaces(55123);
@@ -405,6 +445,74 @@ public sealed class LibtorrentEngineServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task LibtorrentEngine_CapturesBlockUploadedAlerts_WithCyrillicNameAndAfterApplySettings()
+    {
+        string seedAppData = Path.Combine(_tempDir, "seed_cyr_appdata");
+        string leechAppData = Path.Combine(_tempDir, "leech_cyr_appdata");
+        string seedDir = Path.Combine(_tempDir, "seed_cyr_files", "Образы Windows [10.0] [Ru]");
+        string leechDir = Path.Combine(_tempDir, "leech_cyr_files");
+        Directory.CreateDirectory(seedDir);
+        Directory.CreateDirectory(leechDir);
+
+        byte[] payload = new byte[2 * 1024 * 1024];
+        Random.Shared.NextBytes(payload);
+        await File.WriteAllBytesAsync(Path.Combine(seedDir, "data.bin"), payload);
+
+        using var tracker = StartLoopbackTracker();
+        var created = await BencodeHelper.CreateTorrentAsync(new TorrentCreationOptions(
+            seedDir,
+            [tracker.TrackerUrl],
+            PieceLengthBytes: 64 * 1024));
+        string torrentPath = Path.Combine(_tempDir, "cyr.torrent");
+        await File.WriteAllBytesAsync(torrentPath, created.TorrentBytes);
+
+        var seedSettings = new SettingsService(seedAppData);
+        seedSettings.SaveSettings(new AppSettings
+        {
+            DefaultDownloadPath = Path.GetDirectoryName(seedDir)!,
+            ListenPort = tracker.SeedPort,
+            EnableDht = false,
+            EnableLocalPeerDiscovery = false,
+            EnablePortForwarding = false
+        });
+        var leechSettings = new SettingsService(leechAppData);
+        leechSettings.SaveSettings(new AppSettings
+        {
+            DefaultDownloadPath = leechDir,
+            ListenPort = tracker.LeechPort,
+            EnableDht = false,
+            EnableLocalPeerDiscovery = false,
+            EnablePortForwarding = false
+        });
+
+        await using var seedEngine = new LibtorrentEngineService(seedSettings);
+        await using var leechEngine = new LibtorrentEngineService(leechSettings);
+        await seedEngine.InitializeAsync();
+        await leechEngine.InitializeAsync();
+
+        // Trigger ApplySettingsAsync like saving settings in UI
+        await seedEngine.ApplySettingsAsync(seedSettings.Current);
+
+        var seedItem = await seedEngine.AddTorrentFileAsync(torrentPath, Path.GetDirectoryName(seedDir)!, startImmediately: true);
+        var leechItem = await leechEngine.AddTorrentFileAsync(torrentPath, leechDir, startImmediately: true);
+
+        bool sawUploadedPiece = false;
+        while (!tracker.CancellationToken.IsCancellationRequested)
+        {
+            await seedEngine.RefreshDetailsAsync(seedItem);
+            await leechEngine.RefreshDetailsAsync(leechItem);
+            if (seedItem.UploadingPieces.Count > 0)
+            {
+                sawUploadedPiece = true;
+                break;
+            }
+            await Task.Delay(80, tracker.CancellationToken);
+        }
+
+        Assert.True(sawUploadedPiece, $"Cyrillic/ApplySettings failed to capture upload piece! SeedPeers={seedItem.Peers.Count}, LeechDown={leechItem.DownloadedBytes}");
+    }
+
+    [Fact]
     public void PieceMapControl_UsesLargerCellsAndFewerCellsToRender()
     {
         var (cols, rows, cellSize, _, _) = Gem.Controls.PieceMapControl.ComputeGridMetrics(840, 300);
@@ -412,6 +520,73 @@ public sealed class LibtorrentEngineServiceTests : IDisposable
 
         Assert.True(cellSize >= 12.0, $"Expected larger cellSize >= 12px, got {cellSize:F2}");
         Assert.True(totalCells < 1000, $"Expected fewer cells (< 1000), got {totalCells} ({cols}x{rows})");
+    }
+
+    [Fact]
+    public void PieceMapControl_DrawsWhiteBorderOnUploadingSeedingCells()
+    {
+        Exception? staEx = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var control = new Gem.Controls.PieceMapControl
+                {
+                    Width = 840,
+                    Height = 300,
+                    IsSeeding = true,
+                    TotalPieces = 8172,
+                    Pieces = Enumerable.Repeat(1.0, 4096).ToArray(),
+                    UploadingPieces = [100, 4000]
+                };
+
+                control.Measure(new System.Windows.Size(840, 300));
+                control.Arrange(new System.Windows.Rect(0, 0, 840, 300));
+                control.UpdateLayout();
+
+                var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                    840,
+                    300,
+                    96,
+                    96,
+                    System.Windows.Media.PixelFormats.Pbgra32);
+                rtb.Render(control);
+
+                byte[] pixels = new byte[840 * 300 * 4];
+                rtb.CopyPixels(pixels, 840 * 4, 0);
+
+                bool foundPurple = false;
+                bool foundBorderHighlight = false;
+                for (int i = 0; i < pixels.Length; i += 4)
+                {
+                    byte b = pixels[i];
+                    byte g = pixels[i + 1];
+                    byte r = pixels[i + 2];
+                    byte a = pixels[i + 3];
+                    if (a == 0) continue;
+
+                    if (r is >= 115 and <= 135 && g is >= 45 and <= 70 && b is >= 225 and <= 248)
+                        foundPurple = true;
+
+                    // White overlay blended over #7C3AED (0.25 initial opacity increases R,G,B above fill)
+                    if (r > 138 && g > 72 && b >= 235)
+                        foundBorderHighlight = true;
+                }
+
+                Assert.True(foundPurple, "Expected purple seeding cubes to be rendered.");
+                Assert.True(foundBorderHighlight, "Expected border highlight around uploading seeding cells.");
+            }
+            catch (Exception ex)
+            {
+                staEx = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (staEx is not null)
+            throw new Exception("STA WPF render test failed", staEx);
     }
 
     [Theory]
@@ -589,6 +764,61 @@ public sealed class LibtorrentEngineServiceTests : IDisposable
         });
 
         return new LoopbackTrackerHandle(listener, cts, loopTask, $"http://{peerIp}:{trackerPort}/announce", seedPort, leechPort, peers);
+    }
+
+    [Fact]
+    public async Task HandleDownloadCompletedTransition_RespectsSeedOverrideAndFiresPostActionOnce()
+    {
+        string appData = Path.Combine(_tempDir, "appdata_completion");
+        var settings = new SettingsService(appData);
+        settings.SaveSettings(new AppSettings
+        {
+            SeedAfterDownload = false
+        });
+
+        var power = new FakeSystemPowerService();
+        await using var engine = new LibtorrentEngineService(settings, power);
+
+        var torrentNoSeed = new TorrentItemModel
+        {
+            InfoHash = "aaa111",
+            Name = "Archive",
+            PostCompletionAction = PostCompletionAction.Hibernate
+        };
+
+        bool stopCalled = false;
+        bool stopped = engine.HandleDownloadCompletedTransition(torrentNoSeed, () => stopCalled = true);
+        Assert.True(stopped);
+        Assert.True(stopCalled);
+        Assert.Equal(PostCompletionAction.None, torrentNoSeed.PostCompletionAction);
+        Assert.Equal([PostCompletionAction.Hibernate], power.ExecutedActions);
+
+        // Second call does not re-trigger cleared post action
+        engine.HandleDownloadCompletedTransition(torrentNoSeed, null);
+        Assert.Single(power.ExecutedActions);
+
+        // Override=true seeds even when global SeedAfterDownload=false
+        var torrentForceSeed = new TorrentItemModel
+        {
+            InfoHash = "bbb222",
+            Name = "LinuxISO",
+            SeedAfterDownloadOverride = true
+        };
+        bool forcedStopCalled = false;
+        bool stopped2 = engine.HandleDownloadCompletedTransition(torrentForceSeed, () => forcedStopCalled = true);
+        Assert.False(stopped2);
+        Assert.False(forcedStopCalled);
+    }
+
+    private sealed class FakeSystemPowerService : ISystemPowerService
+    {
+        public List<PostCompletionAction> ExecutedActions { get; } = [];
+
+        public bool Execute(PostCompletionAction action)
+        {
+            ExecutedActions.Add(action);
+            return true;
+        }
     }
 
     private sealed class LoopbackTrackerHandle : IDisposable

@@ -298,11 +298,25 @@
                                     </TextBlock>
 
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <StackPanel.Resources>
+                                            <Style x:Key="PieceLegendAccentSquareStyle" TargetType="Border">
+                                                <Setter Property="Width" Value="8" />
+                                                <Setter Property="Height" Value="8" />
+                                                <Setter Property="CornerRadius" Value="1.5" />
+                                                <Setter Property="Margin" Value="1,0" />
+                                                <Setter Property="Background" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedTorrent.StatusKind}" Value="{x:Static models:TorrentStatusKind.Seeding}">
+                                                        <Setter Property="Background" Value="{DynamicResource GemSeedingBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Resources>
                                         <TextBlock Text="0%" FontSize="10.5" Margin="0,0,5,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                                         <Border Width="8" Height="8" CornerRadius="1.5" Margin="1,0" Background="{DynamicResource SubtleFillColorTertiaryBrush}" />
-                                        <Border Width="8" Height="8" CornerRadius="1.5" Margin="1,0" Opacity="0.35" Background="{DynamicResource SystemAccentColorPrimaryBrush}" />
-                                        <Border Width="8" Height="8" CornerRadius="1.5" Margin="1,0" Opacity="0.65" Background="{DynamicResource SystemAccentColorPrimaryBrush}" />
-                                        <Border Width="8" Height="8" CornerRadius="1.5" Margin="1,0" Background="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                                        <Border Opacity="0.35" Style="{StaticResource PieceLegendAccentSquareStyle}" />
+                                        <Border Opacity="0.65" Style="{StaticResource PieceLegendAccentSquareStyle}" />
+                                        <Border Style="{StaticResource PieceLegendAccentSquareStyle}" />
                                         <TextBlock Text="100%" FontSize="10.5" Margin="5,0,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                                     </StackPanel>
                                 </Grid>
@@ -310,7 +324,18 @@
                                 <controls:PieceMapControl Grid.Row="1"
                                                           Pieces="{Binding SelectedTorrent.PieceBucketFill}"
                                                           UploadingPieces="{Binding SelectedTorrent.UploadingPieces}"
-                                                          TotalPieces="{Binding SelectedTorrent.PieceCount}" />
+                                                          TotalPieces="{Binding SelectedTorrent.PieceCount}">
+                                    <controls:PieceMapControl.Style>
+                                        <Style TargetType="controls:PieceMapControl">
+                                            <Setter Property="IsSeeding" Value="False" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SelectedTorrent.StatusKind}" Value="{x:Static models:TorrentStatusKind.Seeding}">
+                                                    <Setter Property="IsSeeding" Value="True" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </controls:PieceMapControl.Style>
+                                </controls:PieceMapControl>
                             </Grid>
                         </Border>
 
@@ -468,7 +493,7 @@
                                                                             <Setter Property="Background" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
                                                                             <Style.Triggers>
                                                                                 <DataTrigger Binding="{Binding IsSeeder}" Value="True">
-                                                                                    <Setter Property="Background" Value="#109E4E" />
+                                                                                    <Setter Property="Background" Value="{DynamicResource GemSeedingBrush}" />
                                                                                 </DataTrigger>
                                                                             </Style.Triggers>
                                                                         </Style>

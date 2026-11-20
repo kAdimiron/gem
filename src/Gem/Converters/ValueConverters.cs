@@ -56,8 +56,8 @@ public sealed class EtaToStringConverter : IValueConverter
 
 public sealed class StatusKindToBrushConverter : IValueConverter
 {
-    private static readonly SolidColorBrush DownloadingBrush = CreateFrozen("#0078D4");
-    private static readonly SolidColorBrush SeedingBrush = CreateFrozen("#7C3AED");
+    private static readonly SolidColorBrush DownloadingBrush = CreateFrozen("#018574");
+    private static readonly SolidColorBrush SeedingBrush = CreateFrozen("#109E4E");
     private static readonly SolidColorBrush PausedBrush = CreateFrozen("#9D5D00");
     private static readonly SolidColorBrush CheckingBrush = CreateFrozen("#8764B8");
     private static readonly SolidColorBrush MetadataBrush = CreateFrozen("#038387");
@@ -80,6 +80,12 @@ public sealed class StatusKindToBrushConverter : IValueConverter
             Application.Current?.TryFindResource("SystemAccentColorPrimaryBrush") is SolidColorBrush accentBrush)
         {
             return accentBrush;
+        }
+
+        if (kind == TorrentStatusKind.Seeding &&
+            Application.Current?.TryFindResource("GemSeedingBrush") is SolidColorBrush seedingBrush)
+        {
+            return seedingBrush;
         }
 
         return kind switch

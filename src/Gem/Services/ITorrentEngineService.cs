@@ -51,6 +51,10 @@ public interface ITorrentEngineService : IAsyncDisposable
 
     Task ApplySettingsAsync(AppSettings settings);
 
+    void SetSeedAfterDownloadOverride(TorrentItemModel item, bool? seedAfterDownloadOverride) { }
+
+    void SetPostCompletionAction(TorrentItemModel item, PostCompletionAction action) { }
+
     Task RefreshDetailsAsync(TorrentItemModel item);
 
     Task ShutdownAsync();

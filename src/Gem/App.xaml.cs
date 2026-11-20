@@ -31,6 +31,8 @@ public partial class App : Application
         services.AddSingleton<SettingsService>();
         services.AddSingleton<LocalizationService>(_ => LocalizationService.Instance);
         services.AddSingleton<ThemeService>();
+        services.AddSingleton<IStartupService, WindowsStartupService>();
+        services.AddSingleton<ISystemPowerService, WindowsSystemPowerService>();
         services.AddSingleton<INotificationService, WindowsNotificationService>();
         services.AddSingleton<IUpdateService>(sp => new GitHubUpdateService(sp.GetRequiredService<SettingsService>()));
         services.AddSingleton<ITorrentEngineService, LibtorrentEngineService>();
@@ -41,7 +43,7 @@ public partial class App : Application
 
         var initialSettings = _serviceProvider.GetRequiredService<SettingsService>().LoadSettings();
         LocalizationService.Instance.SetLanguage(initialSettings.Language);
-        _serviceProvider.GetRequiredService<ThemeService>().ApplyFixedAccent();
+        _serviceProvider.GetRequiredService<ThemeService>().ApplyFixedAccent(colorTheme: initialSettings.ColorTheme);
 
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         var vm = _serviceProvider.GetRequiredService<MainViewModel>();

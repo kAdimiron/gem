@@ -10,16 +10,17 @@ public sealed class SpeedChartControl : FrameworkElement
     private IReadOnlyList<long> _downloadPoints = [];
     private IReadOnlyList<long> _uploadPoints = [];
 
-    private static readonly Color DownloadColor = Color.FromRgb(0x00, 0x78, 0xD4);
+    private static readonly Color DownloadColor = Color.FromRgb(0x01, 0x85, 0x74);
     private static readonly Color UploadColor = Color.FromRgb(0x10, 0x9E, 0x4E);
     private static readonly Typeface SegoeUiTypeface = new("Segoe UI");
     private static readonly Pen GridPen = CreateGridPen();
-    private static readonly LinearGradientBrush UploadFillBrush = CreateAreaBrush(UploadColor);
-    private static readonly Pen UploadStrokePen = CreateStrokePen(UploadColor);
 
     private Color _cachedDownloadColor;
     private LinearGradientBrush? _cachedDownloadFillBrush;
     private Pen? _cachedDownloadStrokePen;
+    private Color _cachedUploadColor;
+    private LinearGradientBrush? _cachedUploadFillBrush;
+    private Pen? _cachedUploadStrokePen;
 
     public SpeedChartControl()
     {
@@ -83,6 +84,16 @@ public sealed class SpeedChartControl : FrameworkElement
         _cachedDownloadStrokePen = CreateStrokePen(downloadColor);
     }
 
+    private void EnsureUploadStyleCache(Color uploadColor)
+    {
+        if (_cachedUploadFillBrush is not null && _cachedUploadStrokePen is not null && _cachedUploadColor == uploadColor)
+            return;
+
+        _cachedUploadColor = uploadColor;
+        _cachedUploadFillBrush = CreateAreaBrush(uploadColor);
+        _cachedUploadStrokePen = CreateStrokePen(uploadColor);
+    }
+
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
@@ -125,12 +136,15 @@ public sealed class SpeedChartControl : FrameworkElement
             dpi);
         dc.DrawText(peakText, new Point(4, 2));
 
-        // Draw Upload first, then Download on top using Windows system accent color
+        // Draw Upload first, then Download on top using active theme palette
         Color downloadColor = (Application.Current?.TryFindResource("SystemAccentColorPrimaryBrush") as SolidColorBrush)?.Color
                               ?? DownloadColor;
+        Color uploadColor = (Application.Current?.TryFindResource("GemSeedingBrush") as SolidColorBrush)?.Color
+                            ?? UploadColor;
         EnsureDownloadStyleCache(downloadColor);
+        EnsureUploadStyleCache(uploadColor);
 
-        DrawSeries(dc, _uploadPoints, w, padTop, chartH, scaleMax, UploadFillBrush, UploadStrokePen);
+        DrawSeries(dc, _uploadPoints, w, padTop, chartH, scaleMax, _cachedUploadFillBrush!, _cachedUploadStrokePen!);
         DrawSeries(dc, _downloadPoints, w, padTop, chartH, scaleMax, _cachedDownloadFillBrush!, _cachedDownloadStrokePen!);
     }
 

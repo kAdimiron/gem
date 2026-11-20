@@ -14,10 +14,11 @@ public sealed class TrafficChartControl : FrameworkElement
     private static readonly Typeface SegoeUiTypeface = new("Segoe UI");
     private static readonly Pen GridPen = CreateGridPen();
     private static readonly Brush BaselineBrush = CreateFrozenBrush(Color.FromArgb(36, 140, 140, 140));
-    private static readonly LinearGradientBrush UploadBrush = CreateBarBrush(UploadColor);
 
     private Color _cachedDownloadColor;
     private LinearGradientBrush? _cachedDownloadBrush;
+    private Color _cachedUploadColor;
+    private LinearGradientBrush? _cachedUploadBrush;
 
     public TrafficChartControl()
     {
@@ -71,6 +72,16 @@ public sealed class TrafficChartControl : FrameworkElement
         return _cachedDownloadBrush;
     }
 
+    private LinearGradientBrush EnsureUploadBrush(Color uploadColor)
+    {
+        if (_cachedUploadBrush is not null && _cachedUploadColor == uploadColor)
+            return _cachedUploadBrush;
+
+        _cachedUploadColor = uploadColor;
+        _cachedUploadBrush = CreateBarBrush(uploadColor);
+        return _cachedUploadBrush;
+    }
+
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
@@ -118,9 +129,11 @@ public sealed class TrafficChartControl : FrameworkElement
         dc.DrawText(peakText, new Point(4, 1));
 
         Color downloadColor = (Application.Current?.TryFindResource("SystemAccentColorPrimaryBrush") as SolidColorBrush)?.Color
-                              ?? Color.FromRgb(0x00, 0x78, 0xD4);
+                              ?? Color.FromRgb(0x01, 0x85, 0x74);
+        Color uploadColor = (Application.Current?.TryFindResource("GemSeedingBrush") as SolidColorBrush)?.Color
+                            ?? UploadColor;
         var downBrush = EnsureDownloadBrush(downloadColor);
-        var upBrush = UploadBrush;
+        var upBrush = EnsureUploadBrush(uploadColor);
         var baselineBrush = BaselineBrush;
 
         double slotW = w / count;

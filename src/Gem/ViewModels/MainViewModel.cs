@@ -22,6 +22,7 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly ThemeService _themeService;
     private readonly INotificationService? _notifications;
     private readonly IUpdateService? _updateService;
+    private readonly IStartupService? _startupService;
     private readonly Queue<long> _downHistory = new();
     private readonly Queue<long> _upHistory = new();
     private readonly long[] _downHistoryBuffer = new long[HistoryLength];
@@ -65,6 +66,56 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private TorrentFilterKind _selectedFilter = TorrentFilterKind.All;
+
+    [ObservableProperty]
+    private TorrentSortKind _selectedSort = TorrentSortKind.DateAddedDesc;
+
+    public sealed partial class TorrentSortOption : ObservableObject
+    {
+        public TorrentSortKind Kind { get; }
+
+        [ObservableProperty]
+        private string _label;
+
+        public TorrentSortOption(TorrentSortKind kind, string label)
+        {
+            Kind = kind;
+            _label = label;
+        }
+    }
+
+    public ObservableCollection<TorrentSortOption> SortOptions { get; } = new(BuildSortOptions());
+
+    private static string GetSortOptionLabel(TorrentSortKind kind, LocalizationService loc) => kind switch
+    {
+        TorrentSortKind.DateAddedDesc => loc["SortDateAddedDesc"],
+        TorrentSortKind.DateAddedAsc => loc["SortDateAddedAsc"],
+        TorrentSortKind.NameAsc => loc["SortNameAsc"],
+        TorrentSortKind.NameDesc => loc["SortNameDesc"],
+        TorrentSortKind.SizeDesc => loc["SortSizeDesc"],
+        TorrentSortKind.SizeAsc => loc["SortSizeAsc"],
+        TorrentSortKind.ProgressDesc => loc["SortProgressDesc"],
+        TorrentSortKind.DownloadSpeedDesc => loc["SortDownloadSpeedDesc"],
+        TorrentSortKind.UploadSpeedDesc => loc["SortUploadSpeedDesc"],
+        _ => loc["SortDateAddedDesc"]
+    };
+
+    private static TorrentSortOption[] BuildSortOptions()
+    {
+        var loc = LocalizationService.Instance;
+        return
+        [
+            new(TorrentSortKind.DateAddedDesc, GetSortOptionLabel(TorrentSortKind.DateAddedDesc, loc)),
+            new(TorrentSortKind.DateAddedAsc, GetSortOptionLabel(TorrentSortKind.DateAddedAsc, loc)),
+            new(TorrentSortKind.NameAsc, GetSortOptionLabel(TorrentSortKind.NameAsc, loc)),
+            new(TorrentSortKind.NameDesc, GetSortOptionLabel(TorrentSortKind.NameDesc, loc)),
+            new(TorrentSortKind.SizeDesc, GetSortOptionLabel(TorrentSortKind.SizeDesc, loc)),
+            new(TorrentSortKind.SizeAsc, GetSortOptionLabel(TorrentSortKind.SizeAsc, loc)),
+            new(TorrentSortKind.ProgressDesc, GetSortOptionLabel(TorrentSortKind.ProgressDesc, loc)),
+            new(TorrentSortKind.DownloadSpeedDesc, GetSortOptionLabel(TorrentSortKind.DownloadSpeedDesc, loc)),
+            new(TorrentSortKind.UploadSpeedDesc, GetSortOptionLabel(TorrentSortKind.UploadSpeedDesc, loc))
+        ];
+    }
 
     [ObservableProperty]
     private string _searchQuery = string.Empty;
@@ -216,6 +267,43 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool CanStopSelectedTorrents => SelectedTorrents.Any(t => t.CanStop);
 
+    public bool CanStopOrPauseSelectedTorrents => SelectedTorrents.Any(t => t.CanPause || t.CanStop);
+
+    public bool HasSelectedIncompleteTorrents => SelectedTorrents.Any(t => !t.IsCompleted);
+
+    public bool AreSelectedDownloadsSeedEnabled
+    {
+        get
+        {
+            var downloads = SelectedTorrents.Where(t => !t.IsCompleted).ToList();
+            bool globalDefault = _settingsService.Current.SeedAfterDownload;
+            return downloads.Count == 0
+                ? globalDefault
+                : downloads.All(t => t.GetEffectiveSeedAfterDownload(globalDefault));
+        }
+        set => SetSelectedDownloadsSeedAfterDownload(value);
+    }
+
+    public bool IsSelectedDownloadsSleepChecked
+    {
+        get => AreAllSelectedDownloadsUsingPostAction(PostCompletionAction.Sleep);
+        set => SetSelectedDownloadsPostAction(value ? PostCompletionAction.Sleep : PostCompletionAction.None);
+    }
+
+    public bool IsSelectedDownloadsHibernateChecked
+    {
+        get => AreAllSelectedDownloadsUsingPostAction(PostCompletionAction.Hibernate);
+        set => SetSelectedDownloadsPostAction(value ? PostCompletionAction.Hibernate : PostCompletionAction.None);
+    }
+
+    public bool IsSelectedDownloadsShutdownChecked
+    {
+        get => AreAllSelectedDownloadsUsingPostAction(PostCompletionAction.Shutdown);
+        set => SetSelectedDownloadsPostAction(value ? PostCompletionAction.Shutdown : PostCompletionAction.None);
+    }
+
+    public Action<string>? ClipboardTextWriter { get; set; }
+
     public string StartSelectedMenuHeader =>
         SelectedTorrents.Count > 1
             ? LocalizationService.Instance.Format("TorrentsActionStartCount", SelectedTorrents.Count(t => t.CanStart))
@@ -229,6 +317,11 @@ public sealed partial class MainViewModel : ObservableObject
     public string StopSelectedMenuHeader =>
         SelectedTorrents.Count > 1
             ? LocalizationService.Instance.Format("TorrentsActionStopCount", SelectedTorrents.Count(t => t.CanStop))
+            : LocalizationService.Instance["TorrentsActionStop"];
+
+    public string StopOrPauseSelectedMenuHeader =>
+        SelectedTorrents.Count > 1
+            ? LocalizationService.Instance.Format("TorrentsActionStopCount", SelectedTorrents.Count(t => t.CanPause || t.CanStop))
             : LocalizationService.Instance["TorrentsActionStop"];
 
     public string RemoveSelectedMenuHeader =>
@@ -247,6 +340,17 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private AppThemeMode _settingsThemeMode = AppThemeMode.System;
+
+    [ObservableProperty]
+    private AppColorTheme _settingsColorTheme = AppColorTheme.Mint;
+
+    public bool IsMintColorThemeSelected => SettingsColorTheme == AppColorTheme.Mint;
+
+    public bool IsTomatoColorThemeSelected => SettingsColorTheme == AppColorTheme.Tomato;
+
+    public bool IsPurpleColorThemeSelected => SettingsColorTheme == AppColorTheme.Purple;
+
+    public bool IsSkyColorThemeSelected => SettingsColorTheme == AppColorTheme.Sky;
 
     [ObservableProperty]
     private int _settingsListenPort = 55123;
@@ -282,7 +386,13 @@ public sealed partial class MainViewModel : ObservableObject
     private bool _settingsAutoStart = true;
 
     [ObservableProperty]
+    private bool _settingsSeedAfterDownload = true;
+
+    [ObservableProperty]
     private bool _settingsMinimizeToTrayOnClose = true;
+
+    [ObservableProperty]
+    private bool _settingsLaunchAtStartup;
 
     public bool ShouldMinimizeToTrayOnClose => SettingsMinimizeToTrayOnClose;
 
@@ -338,13 +448,15 @@ public sealed partial class MainViewModel : ObservableObject
         SettingsService settingsService,
         ThemeService themeService,
         INotificationService? notifications = null,
-        IUpdateService? updateService = null)
+        IUpdateService? updateService = null,
+        IStartupService? startupService = null)
     {
         _engine = engine;
         _settingsService = settingsService;
         _themeService = themeService;
         _notifications = notifications;
         _updateService = updateService;
+        _startupService = startupService;
 
         var loc = LocalizationService.Instance;
         TopNavItems =
@@ -390,7 +502,7 @@ public sealed partial class MainViewModel : ObservableObject
             var settings = _settingsService.LoadSettings();
             LocalizationService.Instance.SetLanguage(settings.Language);
             LoadSettingsIntoEditor(settings);
-            _themeService.ApplyTheme(settings.ThemeMode, mainWindow);
+            _themeService.ApplyTheme(settings.ThemeMode, settings.ColorTheme, mainWindow);
             IsDarkTheme = _themeService.IsDarkActive;
 
             await _engine.InitializeAsync();
@@ -423,6 +535,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             SettingsDownloadPath = s.DefaultDownloadPath;
             SettingsThemeMode = s.ThemeMode;
+            SettingsColorTheme = s.ColorTheme;
             SettingsLanguage = LocalizationService.ResolveSupportedLanguageCode(s.Language);
             SettingsListenPort = s.ListenPort;
             SettingsEnableDht = s.EnableDht;
@@ -434,7 +547,28 @@ public sealed partial class MainViewModel : ObservableObject
             SettingsReannounceIntervalSeconds = s.ReannounceIntervalSeconds;
             SettingsDefaultTrackersText = string.Join(Environment.NewLine, s.DefaultTrackers);
             SettingsAutoStart = s.AutoStartOnAdd;
+            SettingsSeedAfterDownload = s.SeedAfterDownload;
             SettingsMinimizeToTrayOnClose = s.MinimizeToTrayOnClose;
+            SelectedSort = s.SortKind;
+            if (_startupService is not null)
+            {
+                bool regEnabled = _startupService.IsStartupEnabled();
+                if (regEnabled)
+                {
+                    _startupService.SetStartupEnabled(true);
+                }
+
+                SettingsLaunchAtStartup = regEnabled;
+                if (s.LaunchAtStartup != regEnabled)
+                {
+                    s.LaunchAtStartup = regEnabled;
+                    _settingsService.SaveSettings(s);
+                }
+            }
+            else
+            {
+                SettingsLaunchAtStartup = s.LaunchAtStartup;
+            }
             SettingsUpdateRepository = s.UpdateRepository;
             SettingsAutoCheckUpdates = s.AutoCheckUpdatesOnStartup;
             MagnetSavePath = s.DefaultDownloadPath;
@@ -458,6 +592,68 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    partial void OnSettingsColorThemeChanged(AppColorTheme value)
+    {
+        OnPropertyChanged(nameof(IsMintColorThemeSelected));
+        OnPropertyChanged(nameof(IsTomatoColorThemeSelected));
+        OnPropertyChanged(nameof(IsPurpleColorThemeSelected));
+        OnPropertyChanged(nameof(IsSkyColorThemeSelected));
+
+        if (_isLoadingSettings)
+            return;
+
+        if (_settingsService.Current.ColorTheme != value)
+        {
+            _settingsService.Current.ColorTheme = value;
+            _settingsService.SaveSettings(_settingsService.Current);
+        }
+
+        _themeService.ApplyTheme(SettingsThemeMode, value, Application.Current?.MainWindow);
+        IsDarkTheme = _themeService.IsDarkActive;
+        NotifyThemeBrushesRefreshed();
+    }
+
+    [RelayCommand]
+    private void SelectColorTheme(AppColorTheme colorTheme)
+    {
+        SettingsColorTheme = colorTheme;
+    }
+
+    private void NotifyThemeBrushesRefreshed()
+    {
+        foreach (var torrent in _engine.Torrents)
+            torrent.NotifyThemeColorsChanged();
+
+        SpeedHistoryUpdated?.Invoke(_downHistory.ToArray(), _upHistory.ToArray());
+        TrafficHistoryUpdated?.Invoke(_engine.DailyTrafficHistory);
+    }
+
+    partial void OnSettingsLaunchAtStartupChanged(bool value)
+    {
+        if (_isLoadingSettings)
+            return;
+
+        if (_startupService is not null && !_startupService.SetStartupEnabled(value))
+        {
+            _isLoadingSettings = true;
+            try
+            {
+                SettingsLaunchAtStartup = _startupService.IsStartupEnabled();
+            }
+            finally
+            {
+                _isLoadingSettings = false;
+            }
+            return;
+        }
+
+        if (_settingsService.Current.LaunchAtStartup != value)
+        {
+            _settingsService.Current.LaunchAtStartup = value;
+            _settingsService.SaveSettings(_settingsService.Current);
+        }
+    }
+
     private void OnLanguageChanged()
     {
         var loc = LocalizationService.Instance;
@@ -476,6 +672,9 @@ public sealed partial class MainViewModel : ObservableObject
             CreatePieceSizeOptions.Add(opt);
         CreateSelectedPieceSizeIndex = Math.Clamp(prevPieceIdx, 0, Math.Max(0, CreatePieceSizeOptions.Count - 1));
         CreateSourceSummary = BuildCreateSourceSummary(CreateSourcePath);
+
+        foreach (var opt in SortOptions)
+            opt.Label = GetSortOptionLabel(opt.Kind, loc);
 
         if (!IsCheckingForUpdates && !IsDownloadingUpdate && AvailableUpdate is null)
             UpdateStatusText = loc["UpdateStatusNotChecked"];
@@ -635,6 +834,17 @@ public sealed partial class MainViewModel : ObservableObject
 
     partial void OnSelectedFilterChanged(TorrentFilterKind value) => RebuildFilteredViews();
 
+    partial void OnSelectedSortChanged(TorrentSortKind value)
+    {
+        if (!_isLoadingSettings && _settingsService.Current.SortKind != value)
+        {
+            _settingsService.Current.SortKind = value;
+            _settingsService.SaveSettings(_settingsService.Current);
+        }
+
+        RebuildFilteredViews();
+    }
+
     partial void OnSearchQueryChanged(string value)
     {
         if (FormatHelper.NormalizeToMagnetUri(value) is null)
@@ -652,13 +862,12 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void RebuildFilteredViews()
     {
-        RecentTorrents.Clear();
-        foreach (var item in _engine.Torrents
-                     .Where(t => !(t.IsCompleted && t.StatusKind == TorrentStatusKind.Stopped))
-                     .Take(10))
-        {
-            RecentTorrents.Add(item);
-        }
+        var desiredRecent = _engine.Torrents
+            .Where(t => !(t.IsCompleted && t.StatusKind == TorrentStatusKind.Stopped))
+            .OrderByDescending(t => t.AddedAt)
+            .Take(10)
+            .ToList();
+        SyncCollectionInPlace(RecentTorrents, desiredRecent);
 
         IEnumerable<TorrentItemModel> query = _engine.Torrents;
 
@@ -684,10 +893,25 @@ public sealed partial class MainViewModel : ObservableObject
                                      t.InfoHash.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
+        query = ApplySort(query, SelectedSort);
+
         var result = query.ToList();
         SyncCollectionInPlace(FilteredTorrents, result);
         RefreshSelectionProperties();
     }
+
+    internal static IEnumerable<TorrentItemModel> ApplySort(IEnumerable<TorrentItemModel> query, TorrentSortKind sortKind) => sortKind switch
+    {
+        TorrentSortKind.DateAddedAsc => query.OrderBy(t => t.AddedAt).ThenBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase),
+        TorrentSortKind.NameAsc => query.OrderBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase).ThenByDescending(t => t.AddedAt),
+        TorrentSortKind.NameDesc => query.OrderByDescending(t => t.Name, StringComparer.CurrentCultureIgnoreCase).ThenByDescending(t => t.AddedAt),
+        TorrentSortKind.SizeDesc => query.OrderByDescending(t => t.TotalSize).ThenBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase),
+        TorrentSortKind.SizeAsc => query.OrderBy(t => t.TotalSize).ThenBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase),
+        TorrentSortKind.ProgressDesc => query.OrderByDescending(t => t.Progress).ThenByDescending(t => t.AddedAt),
+        TorrentSortKind.DownloadSpeedDesc => query.OrderByDescending(t => t.DownloadSpeed).ThenByDescending(t => t.AddedAt),
+        TorrentSortKind.UploadSpeedDesc => query.OrderByDescending(t => t.UploadSpeed).ThenByDescending(t => t.AddedAt),
+        _ => query.OrderByDescending(t => t.AddedAt).ThenBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase)
+    };
 
     public void UpdateSelectedTorrents(IEnumerable<TorrentItemModel> selectedItems)
     {
@@ -718,9 +942,16 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanStartSelectedTorrents));
         OnPropertyChanged(nameof(CanPauseSelectedTorrents));
         OnPropertyChanged(nameof(CanStopSelectedTorrents));
+        OnPropertyChanged(nameof(CanStopOrPauseSelectedTorrents));
+        OnPropertyChanged(nameof(HasSelectedIncompleteTorrents));
+        OnPropertyChanged(nameof(AreSelectedDownloadsSeedEnabled));
+        OnPropertyChanged(nameof(IsSelectedDownloadsSleepChecked));
+        OnPropertyChanged(nameof(IsSelectedDownloadsHibernateChecked));
+        OnPropertyChanged(nameof(IsSelectedDownloadsShutdownChecked));
         OnPropertyChanged(nameof(StartSelectedMenuHeader));
         OnPropertyChanged(nameof(PauseSelectedMenuHeader));
         OnPropertyChanged(nameof(StopSelectedMenuHeader));
+        OnPropertyChanged(nameof(StopOrPauseSelectedMenuHeader));
         OnPropertyChanged(nameof(RemoveSelectedMenuHeader));
     }
 
@@ -765,6 +996,13 @@ public sealed partial class MainViewModel : ObservableObject
         if (section == StoreNavSection.CreateTorrent)
         {
             OpenCreateTorrentModal();
+            return;
+        }
+
+        if (CurrentSection == section)
+        {
+            if (IsDetailsOpen)
+                CloseDetails();
             return;
         }
 
@@ -1282,6 +1520,102 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task StopOrPauseSelectedTorrentsAsync()
+    {
+        var targets = SelectedTorrents.Where(t => t.CanPause || t.CanStop).ToList();
+        if (targets.Count == 0)
+            return;
+
+        foreach (var target in targets)
+        {
+            if (target.CanStop)
+                await _engine.StopAsync(target);
+            else
+                await _engine.PauseAsync(target);
+        }
+
+        TotalDownloadSpeed = _engine.TotalDownloadSpeed;
+        TotalUploadSpeed = _engine.TotalUploadSpeed;
+        RebuildFilteredViews();
+    }
+
+    [RelayCommand]
+    private void CopySelectedTorrentField(string? field)
+    {
+        if (SelectedTorrents.Count == 0 || string.IsNullOrWhiteSpace(field))
+            return;
+
+        string? text = field switch
+        {
+            "Name" => string.Join(Environment.NewLine, SelectedTorrents.Select(t => t.Name).Where(s => !string.IsNullOrWhiteSpace(s))),
+            "InfoHash" => string.Join(Environment.NewLine, SelectedTorrents.Select(t => t.InfoHash).Where(s => !string.IsNullOrWhiteSpace(s))),
+            "SavePath" => string.Join(
+                Environment.NewLine,
+                SelectedTorrents.Select(t => t.SavePath).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase)),
+            "Trackers" => string.Join(
+                Environment.NewLine,
+                SelectedTorrents
+                    .SelectMany(t => t.Trackers.Select(tr => tr.Uri).Concat(t.CustomTrackers))
+                    .Where(u => !string.IsNullOrWhiteSpace(u))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)),
+            "Magnet" => string.Join(
+                Environment.NewLine,
+                SelectedTorrents.Select(t => !string.IsNullOrWhiteSpace(t.MagnetUri) ? t.MagnetUri : $"magnet:?xt=urn:btih:{t.InfoHash}")),
+            _ => null
+        };
+
+        if (!string.IsNullOrWhiteSpace(text))
+            (ClipboardTextWriter ?? Clipboard.SetText)(text);
+    }
+
+    private bool AreAllSelectedDownloadsUsingPostAction(PostCompletionAction action)
+    {
+        var downloads = SelectedTorrents.Where(t => !t.IsCompleted).ToList();
+        return downloads.Count > 0 && downloads.All(t => t.PostCompletionAction == action);
+    }
+
+    private void SetSelectedDownloadsSeedAfterDownload(bool enabled)
+    {
+        var downloads = SelectedTorrents.Where(t => !t.IsCompleted).ToList();
+        if (downloads.Count == 0)
+            return;
+
+        bool globalDefault = _settingsService.Current.SeedAfterDownload;
+        bool? nextOverride = enabled == globalDefault ? null : enabled;
+        foreach (var item in downloads)
+            _engine.SetSeedAfterDownloadOverride(item, nextOverride);
+
+        RefreshSelectionProperties();
+    }
+
+    private void SetSelectedDownloadsPostAction(PostCompletionAction action)
+    {
+        var downloads = SelectedTorrents.Where(t => !t.IsCompleted).ToList();
+        if (downloads.Count == 0)
+            return;
+
+        foreach (var item in downloads)
+            _engine.SetPostCompletionAction(item, action);
+
+        RefreshSelectionProperties();
+    }
+
+    [RelayCommand]
+    private void ToggleSelectedDownloadsSeed()
+    {
+        SetSelectedDownloadsSeedAfterDownload(!AreSelectedDownloadsSeedEnabled);
+    }
+
+    [RelayCommand]
+    private void ToggleSelectedDownloadsPostAction(PostCompletionAction action)
+    {
+        PostCompletionAction next = AreAllSelectedDownloadsUsingPostAction(action)
+            ? PostCompletionAction.None
+            : action;
+        SetSelectedDownloadsPostAction(next);
+    }
+
+    [RelayCommand]
     private void OpenSelectedTorrentDetails()
     {
         if (SelectedTorrents.Count == 1)
@@ -1421,6 +1755,17 @@ public sealed partial class MainViewModel : ObservableObject
         catch { }
     }
 
+    internal static StoreNavSection ResolveSectionForTorrent(TorrentItemModel item)
+    {
+        if (item.StatusKind == TorrentStatusKind.Seeding)
+            return StoreNavSection.Seeding;
+
+        if (item.IsCompleted)
+            return StoreNavSection.Library;
+
+        return StoreNavSection.Downloads;
+    }
+
     [RelayCommand]
     private void OpenTorrentDetails(TorrentItemModel? item)
     {
@@ -1428,7 +1773,12 @@ public sealed partial class MainViewModel : ObservableObject
             return;
 
         if (!IsTorrentsView)
-            CurrentSection = StoreNavSection.Downloads;
+        {
+            var targetSection = ResolveSectionForTorrent(item);
+            if (targetSection == StoreNavSection.Downloads)
+                SelectedFilter = TorrentFilterKind.All;
+            CurrentSection = targetSection;
+        }
 
         SelectedTorrent = item;
         IsDetailsOpen = true;
@@ -1559,6 +1909,7 @@ public sealed partial class MainViewModel : ObservableObject
                 ? _settingsService.Current.DefaultDownloadPath
                 : SettingsDownloadPath.Trim(),
             ThemeMode = SettingsThemeMode,
+            ColorTheme = SettingsColorTheme,
             Language = resolvedLanguage,
             ListenPort = Math.Clamp(SettingsListenPort, 1024, 65535),
             EnableDht = SettingsEnableDht,
@@ -1570,18 +1921,25 @@ public sealed partial class MainViewModel : ObservableObject
             ReannounceIntervalSeconds = SettingsReannounceIntervalSeconds <= 0 ? 0 : Math.Clamp(SettingsReannounceIntervalSeconds, 10, 86400),
             DefaultTrackers = FormatHelper.ParseTrackerList(SettingsDefaultTrackersText),
             AutoStartOnAdd = SettingsAutoStart,
+            SeedAfterDownload = SettingsSeedAfterDownload,
             MinimizeToTrayOnClose = SettingsMinimizeToTrayOnClose,
+            LaunchAtStartup = SettingsLaunchAtStartup,
+            SortKind = SelectedSort,
             UpdateRepository = GitHubUpdateService.TryNormalizeRepository(SettingsUpdateRepository) ?? SettingsUpdateRepository.Trim(),
             AutoCheckUpdatesOnStartup = SettingsAutoCheckUpdates
         };
 
+        _startupService?.SetStartupEnabled(updated.LaunchAtStartup);
+        _settingsService.SaveSettings(updated);
         await _engine.ApplySettingsAsync(updated);
+        RefreshSelectionProperties();
         LocalizationService.Instance.SetLanguage(updated.Language);
 
         void ApplyThemeChange()
         {
-            _themeService.ApplyTheme(updated.ThemeMode, Application.Current?.MainWindow);
+            _themeService.ApplyTheme(updated.ThemeMode, updated.ColorTheme, Application.Current?.MainWindow);
             IsDarkTheme = _themeService.IsDarkActive;
+            NotifyThemeBrushesRefreshed();
         }
 
         if (ThemeTransitionRunner is not null)
