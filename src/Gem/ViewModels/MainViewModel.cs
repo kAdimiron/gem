@@ -422,7 +422,10 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool HasAvailableUpdate => AvailableUpdate is not null;
 
-    public string CurrentVersionText => $"v{(_updateService?.CurrentVersion ?? new Version(1, 0, 0)).ToString(3)}";
+    public string CurrentVersionText =>
+        $"v{(_updateService?.CurrentVersion ?? typeof(MainViewModel).Assembly.GetName().Version ?? new Version(1, 0, 1)).ToString(3)}";
+
+    public string AppWindowTitle => $"Gem {CurrentVersionText}";
 
     partial void OnAvailableUpdateChanged(UpdateReleaseInfo? value)
     {

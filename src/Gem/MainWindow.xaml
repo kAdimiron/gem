@@ -8,7 +8,7 @@
                  xmlns:loc="clr-namespace:Gem.Localization"
                  xmlns:views="clr-namespace:Gem.Views"
                  mc:Ignorable="d"
-                 Title="Gem v1.0.0"
+                 Title="{Binding AppWindowTitle}"
                  Icon="pack://application:,,,/Assets/Gem.ico"
                  Width="1240"
                  Height="780"
@@ -56,7 +56,9 @@
                         <Run Text="Gem"
                              FontSize="13.5"
                              FontWeight="SemiBold" />
-                        <Run Text=" v1.0.0"
+                        <Run Text=" "
+                             FontSize="11.5" />
+                        <Run Text="{Binding CurrentVersionText, Mode=OneWay}"
                              FontSize="11.5"
                              FontWeight="Normal"
                              Foreground="{DynamicResource TextFillColorSecondaryBrush}" />

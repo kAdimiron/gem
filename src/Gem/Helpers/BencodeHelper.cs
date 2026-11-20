@@ -10,7 +10,7 @@ public sealed record TorrentCreationOptions(
     int PieceLengthBytes = 0,
     bool IsPrivate = false,
     string? Comment = null,
-    string CreatedBy = "Gem/1.0.0");
+    string CreatedBy = "Gem/1.0.1");
 
 public sealed record TorrentCreationResult(
     byte[] TorrentBytes,
