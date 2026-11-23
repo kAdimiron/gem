@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Выключить ПК",
   "CtxSeedAfterDownload": "Раздача",
   "SettingsColorThemeTitle": "Цветовая палитра",
-  "SettingsColorThemeDesc": "Два акцентных цвета для кнопок, загрузок и раздач"
+  "SettingsColorThemeDesc": "Два акцентных цвета для кнопок, загрузок и раздач",
+  "SettingsStartMinimizedTitle": "Запускать свёрнутым",
+  "SettingsStartMinimizedDesc": "При запуске Gem сразу сворачивается (в трей, если включено сворачивание при закрытии)"
 }

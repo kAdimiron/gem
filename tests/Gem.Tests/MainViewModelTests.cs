@@ -800,24 +800,51 @@ public sealed class MainViewModelTests : IDisposable
         await vm.InitializeAsync();
 
         Assert.Equal(AppColorTheme.Mint, vm.SettingsColorTheme);
-        Assert.True(vm.IsMintColorThemeSelected);
+        Assert.Equal(AppColorTheme.Mint, Assert.Single(vm.ColorThemeOptions, o => o.IsSelected).Theme);
         Assert.Equal(AppColorTheme.Mint, themeService.CurrentColorTheme);
 
         vm.SelectColorThemeCommand.Execute(AppColorTheme.Tomato);
-        Assert.True(vm.IsTomatoColorThemeSelected);
-        Assert.False(vm.IsMintColorThemeSelected);
+        Assert.Equal(AppColorTheme.Tomato, Assert.Single(vm.ColorThemeOptions, o => o.IsSelected).Theme);
+        Assert.False(vm.ColorThemeOptions.Single(o => o.Theme == AppColorTheme.Mint).IsSelected);
         Assert.Equal(AppColorTheme.Tomato, themeService.CurrentColorTheme);
         Assert.Equal(AppColorTheme.Tomato, settingsService.LoadSettings().ColorTheme);
 
         vm.SelectColorThemeCommand.Execute(AppColorTheme.Purple);
-        Assert.True(vm.IsPurpleColorThemeSelected);
+        Assert.True(vm.ColorThemeOptions.Single(o => o.Theme == AppColorTheme.Purple).IsSelected);
         Assert.Equal(AppColorTheme.Purple, themeService.CurrentColorTheme);
 
+        Assert.Equal(Enum.GetValues<AppColorTheme>().Length, vm.ColorThemeOptions.Count);
+        Assert.Equal(16, vm.ColorThemeOptions.Count);
+        Assert.Equal(AppColorTheme.Purple, Assert.Single(vm.ColorThemeOptions, o => o.IsSelected).Theme);
+
+        vm.SelectColorThemeCommand.Execute(AppColorTheme.Mocha);
+        Assert.Equal(AppColorTheme.Mocha, Assert.Single(vm.ColorThemeOptions, o => o.IsSelected).Theme);
+        Assert.Equal(AppColorTheme.Mocha, themeService.CurrentColorTheme);
+
         vm.SelectColorThemeCommand.Execute(AppColorTheme.Sky);
-        Assert.True(vm.IsSkyColorThemeSelected);
+        Assert.True(vm.ColorThemeOptions.Single(o => o.Theme == AppColorTheme.Sky).IsSelected);
+        Assert.Equal(AppColorTheme.Sky, Assert.Single(vm.ColorThemeOptions, o => o.IsSelected).Theme);
         await vm.SaveSettingsCommand.ExecuteAsync(null);
         Assert.Equal(AppColorTheme.Sky, themeService.CurrentColorTheme);
         Assert.Equal(AppColorTheme.Sky, settingsService.LoadSettings().ColorTheme);
+    }
+
+    [Fact]
+    public async Task StartMinimized_DefaultsToOff_AndPersistsChanges()
+    {
+        var settingsService = new SettingsService(_tempDir);
+        Assert.False(settingsService.LoadSettings().StartMinimized);
+
+        var vm = new MainViewModel(new FakeTorrentEngineService(), settingsService, new ThemeService());
+        await vm.InitializeAsync();
+        Assert.False(vm.SettingsStartMinimized);
+
+        vm.SettingsStartMinimized = true;
+        Assert.True(settingsService.LoadSettings().StartMinimized);
+
+        vm.SettingsStartMinimized = false;
+        await vm.SaveSettingsCommand.ExecuteAsync(null);
+        Assert.False(settingsService.LoadSettings().StartMinimized);
     }
 
     private sealed class FakeStartupService : IStartupService
@@ -852,6 +879,7 @@ public sealed class MainViewModelTests : IDisposable
         public int DhtNodesCount { get; set; }
         public bool IsRunning => true;
         public event Action? StatsUpdated;
+        public event Action<int>? ListenPortChanged { add { } remove { } }
 
         public void RaiseStatsUpdated() => StatsUpdated?.Invoke();
 

@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Desligar PC",
   "CtxSeedAfterDownload": "Semeando",
   "SettingsColorThemeTitle": "Paleta de cores",
-  "SettingsColorThemeDesc": "Cores de destaque para botões, downloads e envio"
+  "SettingsColorThemeDesc": "Cores de destaque para botões, downloads e envio",
+  "SettingsStartMinimizedTitle": "Iniciar minimizado",
+  "SettingsStartMinimizedDesc": "Abrir o Gem minimizado ao iniciar (na bandeja se minimizar para a bandeja estiver ativado)"
 }

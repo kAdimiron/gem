@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Shut down PC",
   "CtxSeedAfterDownload": "Seeding",
   "SettingsColorThemeTitle": "Colour palette",
-  "SettingsColorThemeDesc": "Accent colours for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colours for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "Start minimised",
+  "SettingsStartMinimizedDesc": "Open Gem minimised (to the tray if minimise to tray is enabled) when it launches"
 }

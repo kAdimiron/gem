@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Sammuta tietokone",
   "CtxSeedAfterDownload": "Jako",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "Käynnistä pienennettynä",
+  "SettingsStartMinimizedDesc": "Avaa Gem pienennettynä käynnistyksessä (ilmaisinalueelle, jos se on käytössä)"
 }

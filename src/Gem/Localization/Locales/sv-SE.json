@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Stäng av datorn",
   "CtxSeedAfterDownload": "Delning",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "Starta minimerad",
+  "SettingsStartMinimizedDesc": "Öppna Gem minimerad vid start (i meddelandefältet om det är aktiverat)"
 }

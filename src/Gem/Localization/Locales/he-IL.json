@@ -315,5 +315,7 @@
   "CtxActionShutdown": "כבה מחשב",
   "CtxSeedAfterDownload": "שיתוף",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "הפעלה ממוזערת",
+  "SettingsStartMinimizedDesc": "פתח את Gem ממוזער בעת ההפעלה (למגש המערכת אם האפשרות פעילה)"
 }

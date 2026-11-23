@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Изключи компютъра",
   "CtxSeedAfterDownload": "Споделяне",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "Стартиране минимизирано",
+  "SettingsStartMinimizedDesc": "Gem се отваря минимизиран при стартиране (в системната област, ако е включено)"
 }

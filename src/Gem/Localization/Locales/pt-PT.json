@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Desligar PC",
   "CtxSeedAfterDownload": "A semear",
   "SettingsColorThemeTitle": "Paleta de cores",
-  "SettingsColorThemeDesc": "Cores de destaque para botões, transferências e partilha"
+  "SettingsColorThemeDesc": "Cores de destaque para botões, transferências e partilha",
+  "SettingsStartMinimizedTitle": "Iniciar minimizado",
+  "SettingsStartMinimizedDesc": "Abrir o Gem minimizado ao iniciar (na área de notificação se essa opção estiver ativa)"
 }

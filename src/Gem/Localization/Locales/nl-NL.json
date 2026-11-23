@@ -315,5 +315,7 @@
   "CtxActionShutdown": "PC afsluiten",
   "CtxSeedAfterDownload": "Seeden",
   "SettingsColorThemeTitle": "Kleurenpalet",
-  "SettingsColorThemeDesc": "Accentkleuren voor knoppen, downloads en seeden"
+  "SettingsColorThemeDesc": "Accentkleuren voor knoppen, downloads en seeden",
+  "SettingsStartMinimizedTitle": "Geminimaliseerd starten",
+  "SettingsStartMinimizedDesc": "Gem geminimaliseerd openen bij het starten (naar het systeemvak als dat is ingeschakeld)"
 }

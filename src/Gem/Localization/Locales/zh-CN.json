@@ -315,5 +315,7 @@
   "CtxActionShutdown": "关闭电脑",
   "CtxSeedAfterDownload": "做种",
   "SettingsColorThemeTitle": "配色主题",
-  "SettingsColorThemeDesc": "用于按钮、下载和做种的双强调色"
+  "SettingsColorThemeDesc": "用于按钮、下载和做种的双强调色",
+  "SettingsStartMinimizedTitle": "启动时最小化",
+  "SettingsStartMinimizedDesc": "启动 Gem 时自动最小化（若启用了关闭时最小化到托盘，则最小化到托盘）"
 }

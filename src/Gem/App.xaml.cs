@@ -47,6 +47,10 @@ public partial class App : Application
 
         var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
         var vm = _serviceProvider.GetRequiredService<MainViewModel>();
+        if (initialSettings.StartMinimized)
+        {
+            mainWindow.PrepareStartMinimized(initialSettings.MinimizeToTrayOnClose);
+        }
         mainWindow.Show();
 
         _singleInstance.StartListening(args => ForwardArgsToRunningWindow(mainWindow, vm, args));

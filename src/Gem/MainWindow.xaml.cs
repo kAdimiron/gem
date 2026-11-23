@@ -17,6 +17,7 @@ public partial class MainWindow : FluentWindow
     private int _transitionGeneration;
     private bool _allowClose;
     private bool _hasShownTrayHint;
+    private bool _startMinimizedToTray;
 
     public MainWindow(MainViewModel viewModel, INotificationService? notifications = null)
     {
@@ -37,8 +38,32 @@ public partial class MainWindow : FluentWindow
             Application.Current.SessionEnding += OnApplicationSessionEnding;
     }
 
+    public void PrepareStartMinimized(bool minimizeToTray)
+    {
+        if (minimizeToTray)
+        {
+            _startMinimizedToTray = true;
+            _notifications?.EnsureTrayIcon();
+            ShowInTaskbar = false;
+            WindowState = WindowState.Minimized;
+        }
+        else
+        {
+            _startMinimizedToTray = false;
+            WindowState = WindowState.Minimized;
+        }
+    }
+
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        if (_startMinimizedToTray)
+        {
+            _startMinimizedToTray = false;
+            Hide();
+            ShowInTaskbar = true;
+            WindowState = WindowState.Normal;
+        }
+
         await _viewModel.InitializeAsync(this);
     }
 

@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Matikan PC",
   "CtxSeedAfterDownload": "Seeding",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "Mulai dalam keadaan diperkecil",
+  "SettingsStartMinimizedDesc": "Buka Gem dalam keadaan diperkecil saat dijalankan (ke baki jika opsi tersebut aktif)"
 }

@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Slå av PC",
   "CtxSeedAfterDownload": "Deling",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "Start minimert",
+  "SettingsStartMinimizedDesc": "Åpne Gem minimert ved oppstart (i systemstatusfeltet hvis det er aktivert)"
 }

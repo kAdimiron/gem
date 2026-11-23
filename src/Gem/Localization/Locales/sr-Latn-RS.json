@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Isključi računar",
   "CtxSeedAfterDownload": "Deljenje",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "Start minimized",
+  "SettingsStartMinimizedDesc": "Open Gem minimized (to the tray if minimize to tray is enabled) when it launches"
 }

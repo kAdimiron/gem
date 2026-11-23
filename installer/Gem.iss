@@ -1,5 +1,5 @@
 #define MyAppName "Gem"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "kAdimiron"
 #define MyAppURL "https://github.com/kAdimiron/gem"
 #define MyAppExeName "Gem.exe"

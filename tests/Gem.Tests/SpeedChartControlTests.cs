@@ -58,6 +58,7 @@ public sealed class SpeedChartControlTests : IDisposable
         public int DhtNodesCount => 0;
         public bool IsRunning => true;
         public event Action? StatsUpdated { add { } remove { } }
+        public event Action<int>? ListenPortChanged { add { } remove { } }
         public Task InitializeAsync() => Task.CompletedTask;
         public Task<TorrentItemModel> AddTorrentFileAsync(string torrentFilePath, string? savePath = null, bool? startImmediately = null) => throw new NotSupportedException();
         public Task<TorrentItemModel> AddMagnetAsync(string magnetUri, string? savePath = null, bool? startImmediately = null) => throw new NotSupportedException();

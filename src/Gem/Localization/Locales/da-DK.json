@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Sluk PC",
   "CtxSeedAfterDownload": "Seeding",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "Start minimeret",
+  "SettingsStartMinimizedDesc": "Åbn Gem minimeret ved start (i meddelelsesområdet, hvis det er aktiveret)"
 }

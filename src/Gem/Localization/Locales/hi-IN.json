@@ -315,5 +315,7 @@
   "CtxActionShutdown": "पीसी बंद करें",
   "CtxSeedAfterDownload": "सीडिंग",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "छोटा करके शुरू करें",
+  "SettingsStartMinimizedDesc": "शुरू होने पर Gem को छोटा करके खोलें (ट्रे में, यदि ट्रे में छोटा करना सक्षम है)"
 }

@@ -12,7 +12,19 @@ public enum AppColorTheme
     Mint,
     Tomato,
     Purple,
-    Sky
+    Sky,
+    Cobalt,
+    Cyan,
+    Amber,
+    Rose,
+    Orchid,
+    Forest,
+    Gold,
+    Slate,
+    Indigo,
+    Coral,
+    Sakura,
+    Mocha
 }
 
 public sealed class AppSettings
@@ -59,6 +71,8 @@ public sealed class AppSettings
     public bool ShowSpeedGraph { get; set; } = true;
 
     public bool MinimizeToTrayOnClose { get; set; } = true;
+
+    public bool StartMinimized { get; set; } = false;
 
     public bool LaunchAtStartup { get; set; } = false;
 

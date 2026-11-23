@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Gem.Helpers;
@@ -344,13 +345,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private AppColorTheme _settingsColorTheme = AppColorTheme.Mint;
 
-    public bool IsMintColorThemeSelected => SettingsColorTheme == AppColorTheme.Mint;
-
-    public bool IsTomatoColorThemeSelected => SettingsColorTheme == AppColorTheme.Tomato;
-
-    public bool IsPurpleColorThemeSelected => SettingsColorTheme == AppColorTheme.Purple;
-
-    public bool IsSkyColorThemeSelected => SettingsColorTheme == AppColorTheme.Sky;
+    public IReadOnlyList<ColorThemeSwatchOption> ColorThemeOptions { get; } = BuildColorThemeOptions();
 
     [ObservableProperty]
     private int _settingsListenPort = 55123;
@@ -392,6 +387,9 @@ public sealed partial class MainViewModel : ObservableObject
     private bool _settingsMinimizeToTrayOnClose = true;
 
     [ObservableProperty]
+    private bool _settingsStartMinimized;
+
+    [ObservableProperty]
     private bool _settingsLaunchAtStartup;
 
     public bool ShouldMinimizeToTrayOnClose => SettingsMinimizeToTrayOnClose;
@@ -423,7 +421,7 @@ public sealed partial class MainViewModel : ObservableObject
     public bool HasAvailableUpdate => AvailableUpdate is not null;
 
     public string CurrentVersionText =>
-        $"v{(_updateService?.CurrentVersion ?? typeof(MainViewModel).Assembly.GetName().Version ?? new Version(1, 0, 1)).ToString(3)}";
+        $"v{(_updateService?.CurrentVersion ?? typeof(MainViewModel).Assembly.GetName().Version ?? new Version(1, 0, 2)).ToString(3)}";
 
     public string AppWindowTitle => $"Gem {CurrentVersionText}";
 
@@ -495,7 +493,9 @@ public sealed partial class MainViewModel : ObservableObject
 
         _engine.Torrents.CollectionChanged += OnTorrentsCollectionChanged;
         _engine.StatsUpdated += OnEngineStatsUpdated;
+        _engine.ListenPortChanged += OnEngineListenPortChanged;
         LocalizationService.Instance.LanguageChanged += OnLanguageChanged;
+        UpdateColorThemeSwatchSelection(SettingsColorTheme);
     }
 
     public async Task InitializeAsync(Window? mainWindow = null)
@@ -527,6 +527,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task ShutdownAsync()
     {
+        _engine.ListenPortChanged -= OnEngineListenPortChanged;
         LocalizationService.Instance.LanguageChanged -= OnLanguageChanged;
         await _engine.ShutdownAsync();
     }
@@ -539,6 +540,7 @@ public sealed partial class MainViewModel : ObservableObject
             SettingsDownloadPath = s.DefaultDownloadPath;
             SettingsThemeMode = s.ThemeMode;
             SettingsColorTheme = s.ColorTheme;
+            UpdateColorThemeSwatchSelection(s.ColorTheme);
             SettingsLanguage = LocalizationService.ResolveSupportedLanguageCode(s.Language);
             SettingsListenPort = s.ListenPort;
             SettingsEnableDht = s.EnableDht;
@@ -552,6 +554,7 @@ public sealed partial class MainViewModel : ObservableObject
             SettingsAutoStart = s.AutoStartOnAdd;
             SettingsSeedAfterDownload = s.SeedAfterDownload;
             SettingsMinimizeToTrayOnClose = s.MinimizeToTrayOnClose;
+            SettingsStartMinimized = s.StartMinimized;
             SelectedSort = s.SortKind;
             if (_startupService is not null)
             {
@@ -597,10 +600,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     partial void OnSettingsColorThemeChanged(AppColorTheme value)
     {
-        OnPropertyChanged(nameof(IsMintColorThemeSelected));
-        OnPropertyChanged(nameof(IsTomatoColorThemeSelected));
-        OnPropertyChanged(nameof(IsPurpleColorThemeSelected));
-        OnPropertyChanged(nameof(IsSkyColorThemeSelected));
+        UpdateColorThemeSwatchSelection(value);
 
         if (_isLoadingSettings)
             return;
@@ -614,6 +614,68 @@ public sealed partial class MainViewModel : ObservableObject
         _themeService.ApplyTheme(SettingsThemeMode, value, Application.Current?.MainWindow);
         IsDarkTheme = _themeService.IsDarkActive;
         NotifyThemeBrushesRefreshed();
+    }
+
+    private void UpdateColorThemeSwatchSelection(AppColorTheme activeTheme)
+    {
+        foreach (var opt in ColorThemeOptions)
+            opt.IsSelected = opt.Theme == activeTheme;
+    }
+
+    private static IReadOnlyList<ColorThemeSwatchOption> BuildColorThemeOptions()
+    {
+        var list = new List<ColorThemeSwatchOption>();
+        foreach (var theme in Enum.GetValues<AppColorTheme>())
+        {
+            (Color primary, Color secondary) = ThemeService.GetPalette(theme);
+            var brush = new LinearGradientBrush
+            {
+                StartPoint = new Point(0, 0),
+                EndPoint = new Point(1, 1)
+            };
+            brush.GradientStops.Add(new GradientStop(primary, 0.0));
+            brush.GradientStops.Add(new GradientStop(primary, 0.495));
+            brush.GradientStops.Add(new GradientStop(secondary, 0.505));
+            brush.GradientStops.Add(new GradientStop(secondary, 1.0));
+            brush.Freeze();
+
+            list.Add(new ColorThemeSwatchOption
+            {
+                Theme = theme,
+                SwatchBrush = brush
+            });
+        }
+        return list;
+    }
+
+    partial void OnSettingsStartMinimizedChanged(bool value)
+    {
+        if (_isLoadingSettings)
+            return;
+
+        if (_settingsService.Current.StartMinimized != value)
+        {
+            _settingsService.Current.StartMinimized = value;
+            _settingsService.SaveSettings(_settingsService.Current);
+        }
+    }
+
+    private void OnEngineListenPortChanged(int newPort)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is not null && !dispatcher.CheckAccess())
+        {
+            dispatcher.BeginInvoke(() => ApplyUpdatedListenPort(newPort));
+            return;
+        }
+
+        ApplyUpdatedListenPort(newPort);
+    }
+
+    private void ApplyUpdatedListenPort(int newPort)
+    {
+        if (newPort is >= 1024 and <= 65535 && SettingsListenPort != newPort)
+            SettingsListenPort = newPort;
     }
 
     [RelayCommand]
@@ -1926,6 +1988,7 @@ public sealed partial class MainViewModel : ObservableObject
             AutoStartOnAdd = SettingsAutoStart,
             SeedAfterDownload = SettingsSeedAfterDownload,
             MinimizeToTrayOnClose = SettingsMinimizeToTrayOnClose,
+            StartMinimized = SettingsStartMinimized,
             LaunchAtStartup = SettingsLaunchAtStartup,
             SortKind = SelectedSort,
             UpdateRepository = GitHubUpdateService.TryNormalizeRepository(SettingsUpdateRepository) ?? SettingsUpdateRepository.Trim(),
@@ -2095,4 +2158,13 @@ public sealed partial class MainViewModel : ObservableObject
 
         _notifications?.Show(title, message, kind);
     }
+}
+
+public sealed partial class ColorThemeSwatchOption : ObservableObject
+{
+    public required AppColorTheme Theme { get; init; }
+    public required Brush SwatchBrush { get; init; }
+
+    [ObservableProperty]
+    private bool _isSelected;
 }

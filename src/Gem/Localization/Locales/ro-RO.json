@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Oprește PC-ul",
   "CtxSeedAfterDownload": "Seed",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "Pornește minimizat",
+  "SettingsStartMinimizedDesc": "Deschide Gem minimizat la pornire (în zona de notificare dacă opțiunea este activă)"
 }

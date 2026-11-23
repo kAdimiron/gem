@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Выключыць ПК",
   "CtxSeedAfterDownload": "Раздача",
   "SettingsColorThemeTitle": "Каляровая палітра",
-  "SettingsColorThemeDesc": "Два акцэнтныя колеры для кнопак, спампаванняў і раздач"
+  "SettingsColorThemeDesc": "Два акцэнтныя колеры для кнопак, спампаванняў і раздач",
+  "SettingsStartMinimizedTitle": "Запускаць згорнутым",
+  "SettingsStartMinimizedDesc": "Пры запуску Gem адразу згортваецца (у трэй, калі ўключана згортванне пры закрыцці)"
 }

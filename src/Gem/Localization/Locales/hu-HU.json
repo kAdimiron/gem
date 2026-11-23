@@ -315,5 +315,7 @@
   "CtxActionShutdown": "PC kikapcsolása",
   "CtxSeedAfterDownload": "Seedelés",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "Indítás kis méretben",
+  "SettingsStartMinimizedDesc": "A Gem indításkor kis méretben nyílik meg (a tálcára, ha ez engedélyezve van)"
 }

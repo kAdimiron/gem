@@ -315,5 +315,7 @@
   "CtxActionShutdown": "ДК-ді өшіру",
   "CtxSeedAfterDownload": "Тарату",
   "SettingsColorThemeTitle": "Түстер палитрасы",
-  "SettingsColorThemeDesc": "Түймелер, жүктеулер және тарату үшін екпінді түстер"
+  "SettingsColorThemeDesc": "Түймелер, жүктеулер және тарату үшін екпінді түстер",
+  "SettingsStartMinimizedTitle": "Кішірейтілген күйде іске қосу",
+  "SettingsStartMinimizedDesc": "Іске қосылғанда Gem бірден кішірейеді (жабу кезінде трейге кішірейту қосулы болса, трейге)"
 }

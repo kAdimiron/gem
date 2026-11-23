@@ -315,5 +315,7 @@
   "CtxActionShutdown": "PCをシャットダウン",
   "CtxSeedAfterDownload": "シード",
   "SettingsColorThemeTitle": "カラーパレット",
-  "SettingsColorThemeDesc": "ボタン、ダウンロード、シード用のアクセントカラー"
+  "SettingsColorThemeDesc": "ボタン、ダウンロード、シード用のアクセントカラー",
+  "SettingsStartMinimizedTitle": "最小化して起動",
+  "SettingsStartMinimizedDesc": "起動時に Gem を最小化します（トレイへの最小化が有効な場合はトレイへ）"
 }

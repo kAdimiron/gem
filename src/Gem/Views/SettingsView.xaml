@@ -105,9 +105,9 @@
                     <StackPanel.Resources>
                         <Style x:Key="ColorSwatchRadioStyle" TargetType="RadioButton">
                             <Setter Property="Cursor" Value="Hand" />
-                            <Setter Property="Width" Value="42" />
-                            <Setter Property="Height" Value="42" />
-                            <Setter Property="Margin" Value="0,0,6,0" />
+                            <Setter Property="Width" Value="40" />
+                            <Setter Property="Height" Value="40" />
+                            <Setter Property="Margin" Value="0,0,6,6" />
                             <Setter Property="GroupName" Value="GemColorTheme" />
                             <Setter Property="Template">
                                 <Setter.Value>
@@ -163,62 +163,22 @@
                         </Style>
                     </StackPanel.Resources>
 
-                    <RadioButton Style="{StaticResource ColorSwatchRadioStyle}"
-                                 IsChecked="{Binding IsMintColorThemeSelected, Mode=OneWay}"
-                                 Command="{Binding SelectColorThemeCommand}"
-                                 CommandParameter="{x:Static models:AppColorTheme.Mint}">
-                        <RadioButton.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#018574" Offset="0" />
-                                <GradientStop Color="#018574" Offset="0.495" />
-                                <GradientStop Color="#109E4E" Offset="0.505" />
-                                <GradientStop Color="#109E4E" Offset="1" />
-                            </LinearGradientBrush>
-                        </RadioButton.Background>
-                    </RadioButton>
-
-                    <RadioButton Style="{StaticResource ColorSwatchRadioStyle}"
-                                 IsChecked="{Binding IsTomatoColorThemeSelected, Mode=OneWay}"
-                                 Command="{Binding SelectColorThemeCommand}"
-                                 CommandParameter="{x:Static models:AppColorTheme.Tomato}">
-                        <RadioButton.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#DC3E26" Offset="0" />
-                                <GradientStop Color="#DC3E26" Offset="0.495" />
-                                <GradientStop Color="#EA7317" Offset="0.505" />
-                                <GradientStop Color="#EA7317" Offset="1" />
-                            </LinearGradientBrush>
-                        </RadioButton.Background>
-                    </RadioButton>
-
-                    <RadioButton Style="{StaticResource ColorSwatchRadioStyle}"
-                                 IsChecked="{Binding IsPurpleColorThemeSelected, Mode=OneWay}"
-                                 Command="{Binding SelectColorThemeCommand}"
-                                 CommandParameter="{x:Static models:AppColorTheme.Purple}">
-                        <RadioButton.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#7C3AED" Offset="0" />
-                                <GradientStop Color="#7C3AED" Offset="0.495" />
-                                <GradientStop Color="#5B21B6" Offset="0.505" />
-                                <GradientStop Color="#5B21B6" Offset="1" />
-                            </LinearGradientBrush>
-                        </RadioButton.Background>
-                    </RadioButton>
-
-                    <RadioButton Style="{StaticResource ColorSwatchRadioStyle}"
-                                 Margin="0"
-                                 IsChecked="{Binding IsSkyColorThemeSelected, Mode=OneWay}"
-                                 Command="{Binding SelectColorThemeCommand}"
-                                 CommandParameter="{x:Static models:AppColorTheme.Sky}">
-                        <RadioButton.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#8DBCD8" Offset="0" />
-                                <GradientStop Color="#8DBCD8" Offset="0.495" />
-                                <GradientStop Color="#1D6F96" Offset="0.505" />
-                                <GradientStop Color="#1D6F96" Offset="1" />
-                            </LinearGradientBrush>
-                        </RadioButton.Background>
-                    </RadioButton>
+                    <ItemsControl ItemsSource="{Binding ColorThemeOptions}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel MaxWidth="368" Margin="0,0,-6,-6" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <RadioButton Style="{StaticResource ColorSwatchRadioStyle}"
+                                             Background="{Binding SwatchBrush}"
+                                             IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                             Command="{Binding DataContext.SelectColorThemeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                             CommandParameter="{Binding Theme}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </ui:CardControl>
 
@@ -252,6 +212,18 @@
                     </StackPanel>
                 </ui:CardControl.Header>
                 <ui:ToggleSwitch IsChecked="{Binding SettingsMinimizeToTrayOnClose, Mode=TwoWay}" />
+            </ui:CardControl>
+
+            <ui:CardControl Margin="0,0,0,8" Icon="{ui:SymbolIcon FullScreenMinimize24}">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="{loc:Tr SettingsStartMinimizedTitle}" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="{loc:Tr SettingsStartMinimizedDesc}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding SettingsStartMinimized, Mode=TwoWay}" />
             </ui:CardControl>
 
             <ui:CardControl Margin="0,0,0,20" Icon="{ui:SymbolIcon Power24}">
@@ -354,33 +326,29 @@
                               Width="150" />
             </ui:CardControl>
 
-            <Border Margin="0,0,0,20"
-                    Padding="16"
-                    CornerRadius="6"
-                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1">
-                <StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <ui:SymbolIcon Symbol="Link24" FontSize="18" Margin="0,0,10,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <TextBlock Text="{loc:Tr SettingsDefaultTrackersTitle}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" />
+            <ui:CardExpander Margin="0,0,0,20"
+                             Icon="{ui:SymbolIcon Link24}"
+                             IsExpanded="False"
+                             ContentPadding="16">
+                <ui:CardExpander.Header>
+                    <StackPanel>
+                        <TextBlock Text="{loc:Tr SettingsDefaultTrackersTitle}" FontWeight="SemiBold" FontSize="14" />
+                        <TextBlock Text="{loc:Tr SettingsDefaultTrackersDesc}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
-                    <TextBlock Text="{loc:Tr SettingsDefaultTrackersDesc}"
-                               FontSize="12"
-                               TextWrapping="Wrap"
-                               Margin="0,0,0,10"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    <ui:TextBox Text="{Binding SettingsDefaultTrackersText, UpdateSourceTrigger=PropertyChanged}"
-                                AcceptsReturn="True"
-                                VerticalScrollBarVisibility="Auto"
-                                MinHeight="104"
-                                MaxHeight="180"
-                                VerticalContentAlignment="Top"
-                                FontFamily="Consolas"
-                                FontSize="12"
-                                PlaceholderText="udp://tracker.opentrackr.org:1337/announce&#x0a;udp://open.stealth.si:80/announce" />
-                </StackPanel>
-            </Border>
+                </ui:CardExpander.Header>
+                <ui:TextBox Text="{Binding SettingsDefaultTrackersText, UpdateSourceTrigger=PropertyChanged}"
+                            AcceptsReturn="True"
+                            VerticalScrollBarVisibility="Auto"
+                            MinHeight="104"
+                            MaxHeight="180"
+                            VerticalContentAlignment="Top"
+                            FontFamily="Consolas"
+                            FontSize="12"
+                            PlaceholderText="udp://tracker.opentrackr.org:1337/announce&#x0a;udp://open.stealth.si:80/announce" />
+            </ui:CardExpander>
 
             <!-- Section: Bandwidth -->
             <TextBlock Text="{loc:Tr SettingsSectionBandwidth}"

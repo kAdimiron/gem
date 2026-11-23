@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Vypnout PC",
   "CtxSeedAfterDownload": "Odesílání",
   "SettingsColorThemeTitle": "Barevná paleta",
-  "SettingsColorThemeDesc": "Akcentové barvy pro tlačítka, stahování a odesílání"
+  "SettingsColorThemeDesc": "Akcentové barvy pro tlačítka, stahování a odesílání",
+  "SettingsStartMinimizedTitle": "Spouštět minimalizovaně",
+  "SettingsStartMinimizedDesc": "Při spuštění otevřít Gem minimalizovaný (do oznamovací oblasti, pokud je to povoleno)"
 }

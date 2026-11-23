@@ -315,5 +315,7 @@
   "CtxActionShutdown": "إيقاف تشغيل الكمبيوتر",
   "CtxSeedAfterDownload": "مشاركة",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "التشغيل مصغّرًا",
+  "SettingsStartMinimizedDesc": "فتح Gem مصغّرًا عند التشغيل (إلى علبة النظام إذا كان ذلك مفعّلًا)"
 }

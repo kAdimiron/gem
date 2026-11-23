@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Éteindre le PC",
   "CtxSeedAfterDownload": "Partage",
   "SettingsColorThemeTitle": "Palette de couleurs",
-  "SettingsColorThemeDesc": "Couleurs d'accentuation pour les boutons, téléchargements et partages"
+  "SettingsColorThemeDesc": "Couleurs d'accentuation pour les boutons, téléchargements et partages",
+  "SettingsStartMinimizedTitle": "Démarrer réduit",
+  "SettingsStartMinimizedDesc": "Ouvrir Gem réduit au démarrage (dans la zone de notification si cette option est activée)"
 }

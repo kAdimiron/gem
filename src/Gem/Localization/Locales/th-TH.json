@@ -315,5 +315,7 @@
   "CtxActionShutdown": "ปิดเครื่อง",
   "CtxSeedAfterDownload": "การปล่อยไฟล์",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "เริ่มแบบย่อหน้าต่าง",
+  "SettingsStartMinimizedDesc": "เปิด Gem แบบย่อหน้าต่างเมื่อเริ่มทำงาน (ไปที่ถาดระบบหากเปิดใช้งานไว้)"
 }

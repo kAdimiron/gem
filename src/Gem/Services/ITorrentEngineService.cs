@@ -23,6 +23,8 @@ public interface ITorrentEngineService : IAsyncDisposable
 
     event Action? StatsUpdated;
 
+    event Action<int>? ListenPortChanged;
+
     Task InitializeAsync();
 
     Task<TorrentItemModel> AddTorrentFileAsync(string torrentFilePath, string? savePath = null, bool? startImmediately = null);

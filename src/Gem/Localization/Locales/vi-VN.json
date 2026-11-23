@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Tắt máy tính",
   "CtxSeedAfterDownload": "Chia sẻ",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "Khởi động thu nhỏ",
+  "SettingsStartMinimizedDesc": "Mở Gem ở trạng thái thu nhỏ khi khởi động (vào khay nếu đã bật thu nhỏ vào khay)"
 }

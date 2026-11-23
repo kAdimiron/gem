@@ -315,5 +315,7 @@
   "CtxActionShutdown": "خاموش کردن رایانه",
   "CtxSeedAfterDownload": "بذرپاشی",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "اجرای کوچک‌شده",
+  "SettingsStartMinimizedDesc": "Gem هنگام اجرا کوچک‌شده باز شود (در سینی سیستم اگر این گزینه فعال باشد)"
 }

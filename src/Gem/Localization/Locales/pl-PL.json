@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Wyłącz komputer",
   "CtxSeedAfterDownload": "Udostępnianie",
   "SettingsColorThemeTitle": "Paleta kolorów",
-  "SettingsColorThemeDesc": "Kolory akcentu dla przycisków, pobrań i udostępniania"
+  "SettingsColorThemeDesc": "Kolory akcentu dla przycisków, pobrań i udostępniania",
+  "SettingsStartMinimizedTitle": "Uruchamiaj zminimalizowany",
+  "SettingsStartMinimizedDesc": "Otwieraj Gem zminimalizowany przy starcie (do zasobnika, jeśli minimalizacja do zasobnika jest włączona)"
 }

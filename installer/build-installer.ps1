@@ -72,7 +72,7 @@ if ($LASTEXITCODE -ne 0) {
 
 [xml]$csproj = Get-Content (Join-Path $repoRoot "src\Gem\Gem.csproj")
 $appVersion = $csproj.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-if (-not $appVersion) { $appVersion = "1.0.1" }
+if (-not $appVersion) { $appVersion = "1.0.2" }
 $zipOut = Join-Path $repoRoot "publish\installer\Gem-v$appVersion-unpack-win-amd64.zip"
 if (Test-Path $zipOut) { Remove-Item $zipOut -Force }
 Compress-Archive -Path (Join-Path $appDir "*") -DestinationPath $zipOut -CompressionLevel Optimal -Force

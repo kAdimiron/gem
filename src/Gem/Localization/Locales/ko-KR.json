@@ -315,5 +315,7 @@
   "CtxActionShutdown": "PC 종료",
   "CtxSeedAfterDownload": "시드",
   "SettingsColorThemeTitle": "색상 테마",
-  "SettingsColorThemeDesc": "버튼, 다운로드 및 시드에 사용되는 강조 색상"
+  "SettingsColorThemeDesc": "버튼, 다운로드 및 시드에 사용되는 강조 색상",
+  "SettingsStartMinimizedTitle": "최소화 상태로 시작",
+  "SettingsStartMinimizedDesc": "Gem 실행 시 최소화합니다 (트레이로 최소화가 켜져 있으면 트레이로)"
 }

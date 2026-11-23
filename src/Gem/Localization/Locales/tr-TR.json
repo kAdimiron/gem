@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Bilgisayarı kapat",
   "CtxSeedAfterDownload": "Gönderim",
   "SettingsColorThemeTitle": "Renk paleti",
-  "SettingsColorThemeDesc": "Düğmeler, indirmeler ve gönderim için vurgu renkleri"
+  "SettingsColorThemeDesc": "Düğmeler, indirmeler ve gönderim için vurgu renkleri",
+  "SettingsStartMinimizedTitle": "Simge durumunda başlat",
+  "SettingsStartMinimizedDesc": "Gem başlatıldığında simge durumunda açılır (tepsiye küçültme açıksa tepsiye)"
 }

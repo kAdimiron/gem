@@ -315,5 +315,7 @@
   "CtxActionShutdown": "PC herunterfahren",
   "CtxSeedAfterDownload": "Seeden",
   "SettingsColorThemeTitle": "Farbpalette",
-  "SettingsColorThemeDesc": "Zwei Akzentfarben für Schaltflächen, Downloads und Seeding"
+  "SettingsColorThemeDesc": "Zwei Akzentfarben für Schaltflächen, Downloads und Seeding",
+  "SettingsStartMinimizedTitle": "Minimiert starten",
+  "SettingsStartMinimizedDesc": "Gem beim Start minimiert öffnen (in den Infobereich, wenn Minimieren in den Infobereich aktiviert ist)"
 }

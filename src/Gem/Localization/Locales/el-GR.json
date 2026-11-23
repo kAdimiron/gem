@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Τερματισμός υπολογιστή",
   "CtxSeedAfterDownload": "Διαμοιρασμός",
   "SettingsColorThemeTitle": "Color palette",
-  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding"
+  "SettingsColorThemeDesc": "Accent colors for buttons, downloads, and seeding",
+  "SettingsStartMinimizedTitle": "Εκκίνηση σε ελαχιστοποίηση",
+  "SettingsStartMinimizedDesc": "Το Gem ανοίγει ελαχιστοποιημένο κατά την εκκίνηση (στην περιοχή ειδοποιήσεων αν είναι ενεργό)"
 }

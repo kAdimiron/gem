@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Spegni PC",
   "CtxSeedAfterDownload": "In seed",
   "SettingsColorThemeTitle": "Tavolozza colori",
-  "SettingsColorThemeDesc": "Colori principali per pulsanti, download e seeding"
+  "SettingsColorThemeDesc": "Colori principali per pulsanti, download e seeding",
+  "SettingsStartMinimizedTitle": "Avvia ridotto a icona",
+  "SettingsStartMinimizedDesc": "Apri Gem ridotto a icona all'avvio (nell'area di notifica se l'opzione è attiva)"
 }

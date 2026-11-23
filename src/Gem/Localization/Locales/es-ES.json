@@ -315,5 +315,7 @@
   "CtxActionShutdown": "Apagar PC",
   "CtxSeedAfterDownload": "Sembrando",
   "SettingsColorThemeTitle": "Paleta de colores",
-  "SettingsColorThemeDesc": "Colores de acento para botones, descargas y siembra"
+  "SettingsColorThemeDesc": "Colores de acento para botones, descargas y siembra",
+  "SettingsStartMinimizedTitle": "Iniciar minimizado",
+  "SettingsStartMinimizedDesc": "Abrir Gem minimizado al iniciar (en la bandeja si minimizar a la bandeja está activado)"
 }

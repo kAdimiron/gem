@@ -22,7 +22,7 @@ namespace Gem.Services;
 
 /// <summary>
 /// libtorrent-rasterbar (via TorrentSharp.Wrap) BitTorrent engine service with uTP, DHT, sparse storage,
-/// custom Gem v1.0.1 client identity, zero-second stop/removal timeout, and fast resume persistence.
+/// custom Gem v1.0.2 client identity, zero-second stop/removal timeout, and fast resume persistence.
 /// </summary>
 public sealed class LibtorrentEngineService : ITorrentEngineService
 {
@@ -64,6 +64,7 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
     private string? _activeCheckingHash;
     private readonly DispatcherTimer _refreshTimer;
     private readonly DispatcherTimer _checkPumpTimer;
+    private readonly DispatcherTimer _listenRetryTimer;
 
     private readonly Dictionary<string, (long Down, long Up, TorrentState State)> _lastSavedResumeState = new(StringComparer.OrdinalIgnoreCase);
     private TorrentClient? _client;
@@ -72,6 +73,9 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
     private int _trafficSaveTickCounter;
     private int _resumeSaveTickCounter;
     private int _dhtPollTickCounter;
+    private int _activeTargetListenPort;
+    private bool _hasSucceededListenOnTargetPort;
+    private bool _isAutoRetryingListenPort;
     private bool _isRefreshingTick;
     private bool _isSavingResumeData;
     private bool _isRefreshingDhtNodes;
@@ -95,6 +99,8 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
 
     public event Action? StatsUpdated;
 
+    public event Action<int>? ListenPortChanged;
+
     public LibtorrentEngineService(SettingsService settingsService, ISystemPowerService? systemPowerService = null)
     {
         _settingsService = settingsService;
@@ -110,6 +116,12 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
             Interval = TimeSpan.FromMilliseconds(80)
         };
         _checkPumpTimer.Tick += (_, _) => AdvanceCheckQueue();
+
+        _listenRetryTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromSeconds(30)
+        };
+        _listenRetryTimer.Tick += (_, _) => RetryListenWithRandomPort();
     }
 
     private string SessionStateFilePath => Path.Combine(_settingsService.CacheDirectory, "libtorrent_session.state");
@@ -124,6 +136,10 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
         Directory.CreateDirectory(FastResumeDirectory);
         var settings = _settingsService.LoadSettings();
         Directory.CreateDirectory(settings.DefaultDownloadPath);
+        _activeTargetListenPort = settings.ListenPort;
+        _hasSucceededListenOnTargetPort = false;
+        _isAutoRetryingListenPort = false;
+        _listenRetryTimer.Stop();
 
         byte[]? savedSessionState = null;
         if (File.Exists(SessionStateFilePath))
@@ -143,9 +159,9 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
 
             opts.Identity(id =>
             {
-                id.UserAgent("Gem/1.0.1");
-                id.HandshakeClientVersion("Gem v1.0.1");
-                id.PeerFingerprint("-GM1010-");
+                id.UserAgent("Gem/1.0.2");
+                id.HandshakeClientVersion("Gem v1.0.2");
+                id.PeerFingerprint("-GM1020-");
             });
 
             opts.Network(n => ConfigureNetworkOptions(n, settings.ListenPort));
@@ -358,7 +374,100 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
                 if (!IsCheckingState(statusChanged.NewState))
                     ScheduleCheckQueueAdvance();
                 break;
+            case ListenFailedNotification listenFailed:
+                DispatchListenNotification(() => HandleListenFailed(listenFailed.Port));
+                break;
+            case ListenSucceededNotification listenSucceeded:
+                DispatchListenNotification(() => HandleListenSucceeded(listenSucceeded.Port));
+                break;
         }
+    }
+
+    private static void DispatchListenNotification(Action action)
+    {
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher is not null && !dispatcher.CheckAccess())
+        {
+            dispatcher.BeginInvoke(action);
+            return;
+        }
+
+        action();
+    }
+
+    internal bool IsListenRetryScheduled => _listenRetryTimer.IsEnabled;
+
+    internal void HandleListenFailed(int failedPort)
+    {
+        if (_disposed)
+            return;
+
+        if (_hasSucceededListenOnTargetPort && failedPort > 0 && failedPort != _activeTargetListenPort)
+            return;
+
+        if (_activeTargetListenPort <= 0 || failedPort <= 0 || failedPort == _activeTargetListenPort)
+        {
+            _hasSucceededListenOnTargetPort = false;
+            if (!_listenRetryTimer.IsEnabled)
+                _listenRetryTimer.Start();
+        }
+    }
+
+    internal void HandleListenSucceeded(int port)
+    {
+        if (_disposed || port <= 0)
+            return;
+
+        _hasSucceededListenOnTargetPort = true;
+        _listenRetryTimer.Stop();
+
+        bool shouldPersist = (_isAutoRetryingListenPort || _settingsService.Current.ListenPort > 0) &&
+                             port is >= 1024 and <= 65535 &&
+                             _settingsService.Current.ListenPort != port;
+
+        _isAutoRetryingListenPort = false;
+        _activeTargetListenPort = port;
+
+        if (shouldPersist)
+        {
+            _settingsService.Current.ListenPort = port;
+            _settingsService.SaveSettings(_settingsService.Current);
+            ListenPortChanged?.Invoke(port);
+        }
+    }
+
+    internal void RetryListenWithRandomPort(int? overrideRandomPort = null)
+    {
+        if (_disposed || _hasSucceededListenOnTargetPort)
+        {
+            _listenRetryTimer.Stop();
+            return;
+        }
+
+        int nextPort = overrideRandomPort is >= 1024 and <= 65535
+            ? overrideRandomPort.Value
+            : PickRandomListenPort(_activeTargetListenPort);
+
+        _activeTargetListenPort = nextPort;
+        _hasSucceededListenOnTargetPort = false;
+        _isAutoRetryingListenPort = true;
+
+        _client?.ChangeOptions(opts =>
+        {
+            opts.Network(n => ConfigureNetworkOptions(n, nextPort));
+        });
+    }
+
+    internal static int PickRandomListenPort(int excludePort)
+    {
+        for (int i = 0; i < 16; i++)
+        {
+            int candidate = Random.Shared.Next(10000, 65001);
+            if (candidate != excludePort)
+                return candidate;
+        }
+
+        return excludePort == 55123 ? 55124 : 55123;
     }
 
     private void HandleMetadataReceived(TorrentManager manager)
@@ -796,6 +905,10 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
     public Task ApplySettingsAsync(AppSettings settings)
     {
         _settingsService.SaveSettings(settings);
+        _activeTargetListenPort = settings.ListenPort;
+        _hasSucceededListenOnTargetPort = false;
+        _isAutoRetryingListenPort = false;
+        _listenRetryTimer.Stop();
         if (_client is null)
             return Task.CompletedTask;
 
@@ -862,6 +975,7 @@ public sealed class LibtorrentEngineService : ITorrentEngineService
         LocalizationService.Instance.LanguageChanged -= OnLanguageChanged;
         _refreshTimer.Stop();
         _checkPumpTimer.Stop();
+        _listenRetryTimer.Stop();
         lock (_checkQueueLock)
         {
             _pendingCheckQueue.Clear();
